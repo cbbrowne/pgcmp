@@ -1,0 +1,11 @@
+#!/usr/bin/ruby
+require 'rubygems'
+require 'org-ruby'
+
+# This script transforms the documentation file README.org, written in
+# Emacs OrgMode, into HTML
+
+data = IO.read('README.org')
+fd = IO.sysopen("README.html", "w")
+io = IO.new(fd, mode: 'w', cr_newline: true)
+io.puts Orgmode::Parser.new(data).to_html

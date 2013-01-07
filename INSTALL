@@ -1,0 +1,9 @@
+Building pgcmp...
+
+- Run "make" 
+
+This will invoke the Makefile, which does the following:
+
+  a) Pulls the version file from the spec file
+  b) Creates a tarball consisting of the pgcmp components, including spec file
+  c) Runs rpmbuild against that tarball

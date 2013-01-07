@@ -1,0 +1,498 @@
+#!/bin/bash
+
+# Optional configuration:
+PGBINDIR=${PGBINDIR:-${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-9.1/bin"}}
+WORKDIR=${WORKDIR:-"/tmp"}
+PSQL="${PGBINDIR}/psql --pset pager=off "
+
+DB1=${DB1:-"slonyregress1"}
+HOST1=${HOST1:-"localhost"}
+USER1=${USER1:-${PGUSER:-"postgres"}}
+PORT1=${PORT1:-${PGPORT:-"5432"}}
+
+DB2=${DB2:-"slonyregress2"}
+HOST2=${HOST2:-"localhost"}
+USER2=${USER2:-${PGUSER:-"postgres"}}
+PORT2=${PORT2:-${PGPORT:-"5432"}}
+
+DBW=${DBW:-"comparisondatabase"}
+HOSTW=${HOSTW:-"localhost"}
+USERW=${USERW:-${PGUSER:-"postgres"}}
+PORTW=${PORTW:-${PGPORT:-"5432"}}
+
+OMITSCHEMAS=${OMITSCHEMAS:-"('pg_catalog','information_schema')"}
+
+LABEL1=${LABEL1:-"${HOST1}-${PORT1}-${DB1}"}
+LABEL2=${LABEL2:-"${HOST2}-${PORT2}-${DB2}"}
+
+EXPLANATIONS=${EXPLANATIONS:-"${WORKDIR}/explanations.txt"}
+FULLOUTPUT=${FULLOUTPUT:-"${WORKDIR}/fulloutput.txt"}
+UNEXPLAINED=${UNEXPLAINED:-"${WORKDIR}/unexplained.txt"}
+BADEXPLAIN=${BADEXPLAIN:-"${WORKDIR}/badexplanations.txt"}
+COPY1="${WORKDIR}/${LABEL1}.copy"
+COPY2="${WORKDIR}/${LABEL2}.copy"
+
+echo "Generating schema from databases:
+   DB1- ${LABEL1} -d ${DB1} -h ${HOST1} -p ${PORT1}
+   DB2- ${LABEL2} -d ${DB2} -h ${HOST2} -p ${PORT2}
+
+Output to:
+  ${COPY1}
+  ${COPY2}
+
+Work Database:
+   DBW- ${LABELW} -d ${DBW} -h ${HOSTW} -p ${PORTW}
+
+Schemas to be omitted from comparison:
+   ${OMITSCHEMAS}
+
+Explanations Input list (EXPLANATIONS): [${EXPLANATIONS}]
+Full output: (FULLOUTPUT) [${FULLOUTPUT}]
+Unexplained items output: (UNEXPLAINED) [${UNEXPLAINED}]
+Unexplained items as explanation: (BADEXPLAIN) [${BADEXPLAIN}]
+"
+
+function extract_schema_data () {
+    local LABEL=$1
+    local OUTFILE="${WORKDIR}/${LABEL}.copy"  
+    local WHEN=`date`
+    echo "-- extract_schema_data.sh {label=${LABEL}}"
+    echo "-- extracting schema information into file ${OUTFILE}"
+    echo "-- based on libpq parameters: 
+--   PGHOST=${PGHOST}
+--   PGDATABASE=${PGDATABASE}
+--   PGPORT=${PGPORT}
+--   PGUSER=${PGUSER}
+--   as at ${WHEN}"
+
+# Create temporary table to capture data
+    TTQ="
+create temp table pgd_all_data (
+    id serial,
+    object_schema test,
+    object_type text,
+    object_name text,
+    object_definition text
+);
+
+create temp table t_tempschemas (
+    sname text primary key
+);
+insert into t_tempschemas (sname) select nspname from pg_catalog.pg_namespace 
+where nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%';
+"
+
+    CQ="insert into pgd_all_data (object_type, object_schema, object_name, object_definition) "
+    TS=" not in (select sname from t_tempschemas)"
+
+# Pull data for major object types:
+# Roles
+    RQ="${CQ} select 'role', NULL::text, rolname, 'rolcreaterole:'|| (rolcreaterole::text) || ',rolcreatedb:' || (rolcreatedb::text) ||',rolcanlogin:'||(rolcanlogin::text)
+from pg_catalog.pg_roles;"
+
+# Schemas
+# a) Existence
+    SCEQ="${CQ}
+select 'schema', schema_name, schema_name, schema_owner from information_schema.schemata
+where schema_name ${TS};"
+
+# b) Permissions
+    SCP="${CQ}
+select 'schemaperms', nspname, nspname, nspacl::text from pg_catalog.pg_namespace
+where nspname ${TS};"
+
+# Tables
+    TEQ="${CQ}
+select case when table_type = 'BASE TABLE' then 'table'
+            when table_type = 'VIEW' then 'view'
+            else 'other relation' end,
+table_schema,
+table_schema || '.' || table_name, NULL::text
+from information_schema.tables
+where table_schema ${TS};"
+
+    TOWN="${CQ}
+select case when c.relkind = 'r' then 'tableowner'
+            when c.relkind = 'v' then 'viewowner' end, 
+        n.nspname
+        n.nspname || '.' || c.relname, r.rolname
+from pg_class c, pg_namespace n, pg_roles r
+where n.oid = c.relnamespace and r.oid = c.relowner
+and c.relkind in ('v', 'r')
+and n.nspname ${TS};"
+
+    COLS="${CQ}
+select 'column', table_schema, table_schema|| '.' || table_name || '.' || column_name,
+'type:' || data_type || 
+',maxlen:' || coalesce(character_maximum_length::text, coalesce(character_octet_length::text, coalesce(numeric_precision::text, 'n/a'))) ||
+',nullable:'||is_nullable || ',default:' ||  coalesce(column_default, 'NULL')
+from information_schema.columns
+where table_schema not like 'pg_temp_%' and table_schema not like 'pg_toast_temp_%';"
+
+    TPERM="${CQ}
+select case when c.relkind = 'r' then 'tablepermissions'
+            when c.relkind = 'S' then 'sequencepermissions'
+            when c.relkind = 'v' then 'viewpermissions' end,
+       n.nspname,
+       n.nspname || '.' || c.relname, c.relacl
+from pg_class c, pg_namespace n, pg_roles r
+where n.oid = c.relnamespace and r.oid = c.relowner
+and c.relkind in ('v', 'r', 'S')
+and n.nspname ${TS};"
+
+    TSEQ="${CQ}
+select 'sequence', sequence_schema, sequence_schema || '.' || sequence_name, 
+    'start:' || start_value::text || ',min:' || minimum_value::text || ',max:' || maximum_value::text || ',increment:' || increment::text || ',cycles:' || cycle_option
+from information_schema.sequences 
+where sequence_schema ${TS};"
+
+    VDEF="${CQ}
+select 'viewdefinition', table_schema, table_schema|| '.' || table_name, view_definition
+from information_schema.views
+where table_schema ${TS};"
+
+    FSIGS="
+drop table if exists function_signatures;
+create temp table function_signatures as
+select specific_schema as schema, specific_name, specific_schema || '.' || p.oid::regprocedure::text as fqfn
+from information_schema.routines r, pg_proc p
+where r.specific_name = p.proname || '_' || p.oid;
+create index fs_sname on function_signatures(specific_name, schema);
+"
+
+    FCODE="${CQ}
+select 'functiondefinition', f.schema, f.fqfn, 
+    routine_definition
+from information_schema.routines r, function_signatures f
+where 
+r.routine_name = f.routine_name and
+r.specific_name = f.specific_name and 
+routine_schema ${TS};"
+
+    FPERM1="${CQ}
+select 'functionperm', fs.schema, fs.fqfn || '-role:' || rp.grantee,
+'privilege_type:' || rp.privilege_type || ',is_grantable:' || rp.is_grantable
+from function_signatures fs, information_schema.routine_privileges rp
+where fs.specific_name = rp.specific_name 
+  and fs.schema ${TS};"
+
+    FOWNER="${CQ}
+select 'functionowner', fs.schema, fs.fqfn, r.rolname
+from function_signatures fs, pg_catalog.pg_roles r, pg_catalog.pg_proc p
+where r.oid = p.proowner and fs.specific_name = p.proname || '_' || p.oid
+   and fs.schema ${TS};"
+
+    FLANGUAGE="${CQ}
+select 'functionlanguage', fs.schema, fs.fqfn, r.external_language
+from information_schema.routines r, function_signatures fs
+where
+    fs.schema = r.specific_schema and
+    fs.specific_name = r.specific_name and
+    r.specific_schema ${TS};"
+
+    FSECTYPE="${CQ}
+select 'functionsecuritytype', fs.schema, fs.fqfn, r.security_type
+from information_schema.routines r, function_signatures fs
+where 
+    fs.schema = r.specific_schema and
+    fs.specific_name = r.specific_name and
+    r.specific_schema ${TS};"
+
+    FCONFIG="${CQ}
+select 'functionconfig', fs.schema, fs.fqfn, p.proconfig
+from function_signatures fs, pg_catalog.pg_proc p
+where fs.specific_name = p.proname || '_' || p.oid
+   and fs.schema ${TS};"
+
+    TRIGGERS="${CQ}
+select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_table || '->' || t.trigger_name ||'/'|| t.event_manipulation, 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
+from information_schema.triggers t
+where t.trigger_schema ${TS};"
+
+    CHECKCON="${CQ}
+select 'checkconstraint', n.nspname, n.nspname || '.' || r.relname || ':' || c.conname, consrc
+from
+   pg_catalog.pg_class r, pg_catalog.pg_namespace n, pg_catalog.pg_constraint c
+where
+   r.oid = c.conrelid and n.oid = c.connamespace and c.consrc is not null
+   and n.nspname ${TS};"
+
+    INDEXES="${CQ}
+select 'index', schemaname, schemaname || '.' || tablename || ':' || indexname, indexdef
+from pg_catalog.pg_indexes
+where schemaname ${TS};"
+
+    FOREIGNKEYS="${CQ}
+select 'foreign key', constraint_schema, constraint_schema || '.' || c.relname || ':' || constraint_name,
+unique_constraint_schema || '.' || unique_constraint_name || ',match:' || match_option || ',update_rule:' || update_rule || ',delete_rule:' || delete_rule
+from pg_catalog.pg_class c, pg_catalog.pg_constraint pc, information_schema.referential_constraints rc, pg_catalog.pg_namespace n
+where
+   rc.constraint_schema = n.nspname and
+   rc.constraint_name = pc.conname and
+   pc.conrelid = c.oid and
+   c.relnamespace = n.oid and
+   rc.constraint_schema ${TS};"
+    
+
+    EVERYTHING="${TTQ} 
+${RQ} 
+${SCEQ}
+${SCP}
+${TEQ}
+${TOWN}
+${TPERM}
+${COLS}
+${TSEQ}
+${VDEF}
+${FSIGS}
+${FCODE}
+${FPERM1}
+${FOWNER}
+${FLANGUAGE}
+${FSECTYPE}
+${FCONFIG}
+${TRIGGERS}
+${CHECKCON}
+${INDEXES}
+${FOREIGNKEYS}
+
+\copy (select '${LABEL}', id, object_schema, object_type, object_name, object_definition from pgd_all_data) to '${OUTFILE}';"
+
+    echo "${EVERYTHING}"
+}
+
+# Run schema extractions
+extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -d ${DB1} -h ${HOST1} -p ${PORT1} -U ${USER1}  > /dev/null 2>&1
+retcode=$?
+if [ $retcode -ne 0 ]; then
+    echo "Could not extract schema data for label ${LABEL1} from database PGDATA=${DB1} PGHOST=${HOST1} PGPORT=${PORT1} PGUSER=${USER1}"
+    exit 1
+fi
+
+extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -d ${DB2} -h ${HOST2} -p ${PORT2} -U ${USER2}   > /dev/null 2>&1
+if [ $retcode -ne 0 ]; then
+    echo "Could not extract schema data for label ${LABEL2} from database PGDATA=${DB2} PGHOST=${HOST2} PGPORT=${PORT2} PGUSER=${USER2}"
+    exit 1
+fi
+
+# Generated data files
+echo "Extracted schema data files:"
+ls -l ${COPY1} ${COPY2}
+
+# Generate comparison database
+${PSQL} -d postgres -h ${HOSTW} -p ${PORTW} -U ${USERW} -c "create database \"${DBW}\""
+if [ $retcode -ne 0 ]; then
+    echo "Could not establish comparison database from database PGDATA=${DBW} PGHOST=${HOSTW} PGPORT=${PORTW} PGUSER=${USERW}"
+    exit 1
+fi
+
+COMPARESCRIPT="
+drop table if exists data_raw;
+create table data_raw (
+    label text,
+    id serial,
+    primary key (label, id),
+    object_schema text,
+    object_type text,
+    object_name text,
+    object_definition text
+);
+create index db1_tnd on data_raw(object_type, object_name);
+truncate data_raw;
+
+\\copy data_raw from '${COPY1}';
+\\copy data_raw from '${COPY2}';
+
+update data_raw set object_definition = '' where object_definition is null;
+
+drop table if exists raw_differences;
+create table raw_differences (
+  object_schema text,
+  object_name text,
+  object_type text,
+  label1 text,
+  id1 integer,
+  object_definition1 text,
+  label2 text,
+  id2 integer,
+  object_definition2 text,
+  difference_type text
+);
+
+--- Find all the items that generally match...
+insert into raw_differences (label1, id1, object_type, object_schema, object_name, object_definition1, 
+                             label2, id2, object_definition2, difference_type)
+select r1.label, r1.id, r1.object_type, r1.object_schema, r1.object_name, r1.object_definition,
+       r2.label, r2.id, r2.object_definition,
+       case when r1.object_definition = r2.object_definition then 'match'
+            else 'mismatch' end
+from data_raw r1, data_raw r2
+where r1.label = '${LABEL1}' and
+      r2.label = '${LABEL2}' and
+      r1.object_type = r2.object_type and
+      r1.object_name = r2.object_name;
+
+insert into raw_differences (label1, id1, object_type, object_schema, object_name, object_definition1, difference_type)
+select r1.label, r1.id, r1.object_type, r.object_schema, r1.object_name, r1.object_definition, 'missing in 2nd DB'
+from data_raw r1
+where not exists (select 1 from data_raw r2 where
+                 r1.object_type = r2.object_type and
+                 r1.object_name = r2.object_name);
+
+insert into raw_differences (label1, id1, object_type, object_schema, object_name, object_definition1, difference_type)
+select r1.label, r1.id, r1.object_type, r1.object_schema, r1.object_name, r1.object_definition, 'missing in 2nd DB'
+from data_raw r1
+where 
+     r1.label = '${LABEL1}' and
+     not exists (select 1 from data_raw r2 where
+                 r1.object_type = r2.object_type and
+                 r1.object_name = r2.object_name and r2.label <> r1.label)
+union all
+select r1.label, r1.id, r1.object_type, r1.object_schema, r1.object_name, r1.object_definition, 'missing in 1st DB'
+from data_raw r1
+where 
+     r1.label = '${LABEL2}' and
+     not exists (select 1 from data_raw r2 where
+                 r1.object_type = r2.object_type and
+                 r1.object_name = r2.object_name and r2.label <> r1.label);
+
+create index rd_label1 on raw_differences(label1);
+create index rd_id1 on raw_differences(id1);
+create index rd_type on raw_differences(object_type);
+create index rd_name on raw_differences(object_name);
+create index rd_label2 on raw_differences(label2);
+create index rd_id2 on raw_differences(id2);
+
+drop table if exists expected_differences;
+create table expected_differences (
+    object_type text,
+    object_schema text,
+    object_name text,
+    difference_type text,
+    difference_cause text,
+    primary key(object_type, object_name, difference_type, difference_cause)
+);
+
+\\copy expected_differences from '${EXPLANATIONS}';
+
+drop table if exists fulloutput;
+create table fulloutput (
+  object_name text,
+  object_schema text,
+  object_type text,
+  label1 text,
+  object_definition1 text,
+  label2 text,
+  object_definition2 text,
+  difference_type text,
+  difference_cause text
+);
+create index fo_main on fulloutput(object_name, object_type);
+
+--- Perform full reconciliation
+
+--- 1.   Expected case: perfect match, no explanation needed OR PROVIDED
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
+select object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, NULL::text
+from raw_differences r where difference_type = 'match' and not exists
+(select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
+
+--- 2.  Not so much expected...  Perfect match, but we have a
+---     reconciling entry indicating why there *shouldn't* be a match
+
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause
+from raw_differences r, expected_differences d where r.difference_type = 'match' and 
+r.object_name = d.object_name and r.object_type = d.object_type;
+
+--- 3.  Expected...   missing, and explained...
+
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause
+from raw_differences r, expected_differences d where r.difference_type in ('missing in 1st DB', 'missing in 2nd DB') and 
+r.object_name = d.object_name and r.object_type = d.object_type;
+
+--- 4.  Not expected...   missing, and NOT explained...
+
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text
+from raw_differences r where r.difference_type in ('missing in 1st DB', 'missing in 2nd DB') and 
+not exists 
+(select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
+
+--- 5.  Expected...   mismatch, and explained...
+
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause
+from raw_differences r, expected_differences d where r.difference_type in ('mismatch') and 
+r.object_name = d.object_name and r.object_type = d.object_type;
+
+--- 6.  Not expected...   missing, and NOT explained...
+
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text
+from raw_differences r where r.difference_type in ('mismatch') and 
+not exists 
+(select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
+
+drop table if exists unexplained_items;
+create table unexplained_items (
+  object_name text,
+  object_schema text,
+  object_type text,
+  label1 text,
+  id1 integer,
+  object_definition1 text,
+  label2 text,
+  id2 integer,
+  object_definition2 text,
+  difference_type text
+);
+
+insert into unexplained_items (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type)
+select object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type
+from raw_differences r
+where r.difference_type not in ('match') and
+not exists 
+(select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
+
+\\copy fulloutput to '${FULLOUTPUT}';
+\\copy unexplained_items to '${UNEXPLAINED}';
+
+drop table if exists badexplanations_items;
+create table badexplanations_items as
+select object_type, object_schema, object_name, difference_type, 'Not Yet Properly Explained'::text as difference_cause
+from unexplained_items
+union all
+select object_type, object_schema, object_name, difference_type, 'Still Not Properly Explained'::text as difference_cause
+from expected_differences where difference_cause in ('Not Properly Yet Explained', 'Still Not Properly Explained')
+union all
+select object_type, object_schema, object_name, difference_type, 'Misexplained'
+from expected_differences d 
+  where exists (select 1 from raw_differences r where r.object_type = d.object_type and r.object_name = d.object_name and r.difference_type <> d.difference_type);
+
+\echo Results Summary
+select object_type, difference_type, difference_cause, count(*) from fulloutput group by 2, 1, 3 order by 2, 1, 3;
+
+\\copy badexplanations_items to '${BADEXPLAIN}';
+
+\echo Inadequately Explained Items
+select object_type, object_name, difference_type, difference_cause from badexplanations_items order by object_type, object_name;
+
+"
+echo "${COMPARESCRIPT}" > ${WORKDIR}/load-comparison-data.sql
+
+${PSQL} -d ${DBW} -h ${HOSTW} -p ${PORTW} -U ${USERW} -f ${WORKDIR}/load-comparison-data.sql > ${WORKDIR}/perform-comparison.log 2>&1 
+if [ $retcode -ne 0 ]; then
+    echo "Could not run comparison against database PGDATA=${DBW} PGHOST=${HOSTW} PGPORT=${PORTW} PGUSER=${USERW}"
+    echo "See comparison log: ${WORKDIR}/perform-comparison.log"
+    exit 2
+fi
+
+if [[ -s ${BADEXPLAIN} ]] ; then
+    baditemcount=`wc -l ${BADEXPLAIN}`
+    echo "Number of items inadequately explained: ${baditemcount}"
+    exit 3
+fi
+
+exit 0

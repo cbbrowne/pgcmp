@@ -1,0 +1,361 @@
+                                README
+                                ======
+
+Author: Christopher Browne
+Date: 2012-08-03 16:44:15 EDT
+
+
+Table of Contents
+=================
+1 pgcmp
+    1.1 Purpose
+    1.2 The Comparison Script
+        1.2.1 Security Considerations
+        1.2.2 Parameters and Inputs
+        1.2.3 Outputs
+
+
+1 pgcmp 
+--------
+
+1.1 Purpose 
+============
+
+   This toolset is intended to perform comparisons ("reconciliation")
+   of schemas between databases to determine if they are /equivalent/.
+   There are several contexts where this is useful, each with a
+   somewhat different understanding of /equivalent/.
+   
+  1. Build process
+     - The build process has database schema in two forms:
+       Build From Scratch: A deployable database is built from
+            scratch, from an empty database
+       Upgrade From Earlier Version: An older version is upgraded
+            to the latest version using a set of /upgrade scripts/.
+     - We need to ensure that the results of building from scratch
+       are /identical/ to those that come from upgrading the old
+       version using upgrade scripts.
+     - In this case, we do not expect /any/ variations, aside from the
+       fact that OIDs will vary between databases.  These databases
+       will be built within the same *smoke test* environment, and
+       thus have the same sets of users, roles, and such, and there
+       should not be any additional components introduced (as might be
+       the case in production)
+     - It is therefore considered a build-breaking *error* to find
+       /any/ variation between the two database schemas
+  2. Validating upgrades
+     - When DBAs are planning to upgrade an instance, using the
+       /upgrade scripts/, it is essential that their starting point
+       represents a schema that is /equivalent/ to the *previous*
+       version.  Otherwise, if the starting point is /wrong/, then the
+       upgrade scripts may not provide a proper upgrade to the new
+       version of the schema.
+     - In this environment, there are a number of /acceptable/ kinds
+       of differences that should be accommodated between the
+       "production" schema and a "development" schema:
+       Replication: Development does not include replication, but
+                        in production, Slony schema, tables,
+                        functions, and such will exist, and the
+                        reconciliation should be able to exclude these
+                        differences.
+       DBA Tooling: DBAs add additional tooling into production
+                        databases, generally in their own schemas,
+                        to help with monitoring.
+       Supplementary Applications: Some applications have add-ons,
+            and, when considering the main application, we may wish to
+            exclude add-ons.  An example of this is the DNS
+            Distributor, which adds additional tables, functions, and
+            triggers that are not considered part of "registry" code.
+       Specialized Ownership: Often, different users are used in
+            production than are used in development.
+     - As a result, when reconciling the "old" schema version against
+       the version in production, it will be necessary to accept the
+       need for /reconciling entries/ so that DBAs are not left
+       puzzling over hundreds of differences that may be reasonably
+       /expected/.
+  3. Validating replicas *in sync* 
+     - When deploying an upgrade, it is not sufficient to know that
+       the "master" node has an agreeable schema; it is essential that
+       /all/ replicas have suitable schemas.
+     - In the above analysis, it was necessary to accommodate there
+       being considerable difference between the "development" schema
+       and the "production" schema.  When comparing replicas,
+       differences should be considered rather more dangerous.
+       Differences to accept/accommodate include:
+       Node-specific deployment: In some cases, add-ons (/e.g./ -
+            *DNS Distributor*) are only installed on certain nodes in
+            the cluster.
+       Origin/Replica differences: Slony defines some triggers
+            that run only on origin nodes (/e.g./ - ~logtrigger()~),
+            and others that run only on replica nodes (/e.g./ -
+            ~denyaccess()~).
+
+1.2 The Comparison Script 
+==========================
+   ~pgcmp~ tooling consists of the script ~pgcmp.sh~.
+
+   This script pulls data about the schema from the two databases that
+   are to be compared, loads that data into a third database where
+   that data is compared in order, and performs a reconciliation of
+   the similarities and differences.
+
+1.2.1 Security Considerations 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    This script requires /read-only/ access to schema data in
+    ~INFORMATION_SCHEMA~ and ~pg_catalog~ in both databases that are
+    to be compared.
+
+    This script requires /write/ access to the third database in which
+    it constructs a series of tables used to perform the
+    reconciliation.
+
+1.2.2 Parameters and Inputs 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     The comparison process connects to /three/ databases, and
+     requires a directory in which to access input
+     (~explanations.txt~, which explains expected differences) as well
+     as to capture output (/e.g./ - a full dump of the data analyzed,
+     along with problems found in the reconciliation).  It therefore
+     uses:
+
+     Environment Variables: Quite a large number, many of which
+          offer reasonable defaults
+     Explanations File: Optional extra file to explain expected
+          differences 
+* Environment Variables 
+  - Common Database configuration
+     PGBINDIR: Location of Postgres binaries, used to find ~psql~
+  - Database Connection Info
+     - First Database
+       DB1: Name of first database to be compared
+       HOST1: Host of first database cluster
+       USER1: Name of database user
+       PORT1: Port of database cluster
+     - Second Database
+       DB2: Name of second database to be compared
+       HOST2: Host of second database cluster
+       USER2: Name of database user
+       PORT2: Port of database cluster
+     Comparison Database: Used to perform comparison
+       DBW: Name of comparison database 
+       HOSTW: Host of comparison database cluster
+       USERW: Name of database user
+       PORTW: Port of database cluster
+   Labels: Used to indicate which data is from which database
+     LABEL1: Label for first database, defaults to
+                 HOST-PORT-DB, for instance, ~localhost-5432-devdb~
+     LABEL2: Label for second database, defaults to
+                 HOST-PORT-DB, for instance,
+                 ~localhost-5432-proddb~
+   - File Locations
+     WORKDIR: Indicates a directory to use for the files, defaults to ~/tmp~
+     EXPLANATIONS: Indicates location of the input file
+                       containing explanations of variances,
+                       defaults to ~WORKDIR/explanations.txt~
+       - Structure is a Postgres COPY of data for a table of
+         expected differences, defined as follows:
+  
+  
+    create table expected_differences (
+   object_type text,
+   object_name text,
+   difference_type text,
+   difference_cause text,
+   primary key(object_type, object_name, difference_type, difference_cause)
+    );
+  
+     FULLOUTPUT: A full list of objects analyzed is stored in
+                     this file, defaults to
+                     ~WORKDIR/fulloutput.txt~
+       - Structure is a Postgres COPY of data from a table with the following structure:
+  
+  
+    create table fulloutput (
+      object_name text,
+      object_type text,
+      label1 text,
+      object_definition1 text,
+      label2 text,
+      object_definition2 text,
+      difference_type text,
+      difference_cause text
+    );
+  
+     UNEXPLAINED: A list of objects where discrepancies were not explained, defaults to
+                     ~WORKDIR/unexplained.txt~
+       - Structure is a Postgres COPY of data from a table with the following structure:
+  
+  
+    create table unexplained_items (
+      object_name text,
+      object_type text,
+      label1 text,
+      id1 integer,
+      object_definition1 text,
+      label2 text,
+      id2 integer,
+      object_definition2 text,
+      difference_type text
+    );
+  
+     BADEXPLAIN: A list of objects where discrepancies were incorrectly explained, defaults to
+                     ~WORKDIR/badexplanations.txt~
+       - Structure is a Postgres COPY of data from a table with the following structure:
+  
+  
+    create table badexplanations_items (
+      object_type text,
+      object_name text,
+      difference_type,
+      difference_cause
+    );
+  
+  
+* Input File: ~explanations.txt~ 
+  There is one input file, ~explanations.txt~.  It provides a set
+  of *explanation* items that allow an administrator to indicate
+  explanations for discrepancies that may be reasonably expected.
+  
+  For instance:
+  Production includes Slony: If comparing a /development/
+       schema that does not include replication against a
+       /production/ schema where *Slony* has been installed, it is
+       to be expected that all of the *Slony* objects will comprise
+       a set of "expected" differences.
+  Production Monitoring: DBAs may add in additional components
+       such as the ~pgstattuples~ contrib module, or even
+       additional schemas and tables.
+  Production Users: The production environment may be expected
+       to have additional users and roles not found in the
+       /development/ schema.
+  
+  
+  
+    create table expected_differences (
+   object_type text,
+   object_name text,
+   difference_type text,
+   difference_cause text,
+   primary key(object_type, object_name, difference_type, difference_cause)
+    );
+  
+  
+  + How To Populate ~explanations.txt~ 
+    
+    The easiest way to populate this file is by running
+    ~pgcmp.sh~ with an /empty/ set of explanations, and
+    then transforming the resulting set of unexplained items into
+    "explained" differences.
+    
+    
+    
+      insert into expected_differences (object_type, object_name,
+      difference_type, difference_cause) select object_type, object_name,
+      difference_type, 'Slony objects only in production' from unexplained_items
+      where object_name like '_oxrspro%';
+      
+      insert into expected_differences (object_type, object_name,
+      difference_type, difference_cause) select object_type, object_name,
+      difference_type, 'contrib objects only in production' from unexplained_items
+      where object_name like 'postgres_contrib%';
+      
+      insert into expected_differences (object_type, object_name,
+      difference_type, difference_cause) select object_type, object_name,
+      difference_type, 'Conversion objects to be removed from production' from
+      unexplained_items where object_name like 'dotpro_conversion%';
+      
+      \copy expected_differences to '/tmp/expected_differences.txt';
+    
+    
+    In subsequent runs, these differences become "expected"
+    differences, so that a DBA or QA analyst does not need to spend
+    their attention manually filtering out these expected
+    differences.
+    
+
+1.2.3 Outputs 
+~~~~~~~~~~~~~~
+     The process has output in several forms:
+     - Brief report to standard output
+     - Files containing details
+     - Return codes useful for determining success/failure
+* Brief Report 
+  
+  Here is an example of running a comparison between two schemas
+  for DotPro from different environments.  It has several
+  sections:
+  Parameters: lists values for all the environment variables
+  Extraction Summary: lists information about the files of
+       extracted schema data
+  SQL messages: lists commands run against the comparison database
+  Results Summary: indicates, by object type, statistics on
+       matches, differences, and explanations.  This is a summary
+       on the table ~fulloutput~.
+  Inadequately Explained Items: indicates specific objects
+       that were inadequately explained by the ~EXPLANATIONS~ data
+  
+  
+  
+    -> % ./pgcmp.sh
+    Generating schema from databases:
+       DB1- localhost-7091-proconv -d proconv -h localhost -p 7091
+       DB2- localhost-7091-dotpro0620 -d dotpro0620 -h localhost -p 7091
+    
+    Output to:
+      /tmp/localhost-7091-proconv.copy
+      /tmp/localhost-7091-dotpro0620.copy
+    
+    Work Database:
+       DBW-  -d comparisondatabase -h localhost -p 7091
+    
+    Explanations Input list (EXPLANATIONS): [/tmp/explanations.txt]
+    Full output: (FULLOUTPUT) [/tmp/fulloutput.txt]
+    Unexplained items output: (UNEXPLAINED) [/tmp/unexplained.txt]
+    Unexplained items as explanation: (BADEXPLAIN) [/tmp/badexplanations.txt]
+    
+    Extracted schema data files:
+    -rw-r--r-- 1 cbbrowne cbbrowne 1343749 Jul  9 12:24 /tmp/localhost-7091-dotpro0620.copy
+    -rw-r--r-- 1 cbbrowne cbbrowne 1547304 Jul  9 12:24 /tmp/localhost-7091-proconv.copy
+    ERROR:  database "comparisondatabase" already exists
+    Number of items inadequately explained: 166 /tmp/badexplanations.txt
+  
+  
+* File Output 
+  The following files (based on contents of these environment
+  variables) are created and populated via COPY:
+  FULLOUTPUT: populated from table ~fulloutput~
+    - This contains a full list of all objects examined in both
+      databases, complete with objects, respective definitions,
+      and difference type and cause
+  UNEXPLAINED: populated from table ~unexplained_items~
+    - This lists all objects where there was some difference, but
+      no item found to explain the difference.
+  BADEXPLAIN: populated from table ~badexplanations_items~
+    - This lists all objects where there was some difference, and
+      an explanation, but the explanation did not properly explain
+      the difference.  For instance, an object was missing from
+      the second database, but the explanation indicated that
+      there should have been a different definition (which
+      indicates that the object was expected to be found in both
+      databases).
+                  
+* Return Codes 
+  
+  If errors are encountered, the script ~pgcmp.sh~
+  will terminate with varying exit codes:
+  
+  exit 1: If data could not be extracted from the either of the source databases
+  exit 1: If a connection is not established with the comparison database
+  exit 2: If the comparison script does not run successfully
+  exit 3: If not all object differences were adequately explained
+  exit 0: If all runs to completion, and differences /were/
+              adequately explained
+              
+  Thus, generally explaining this:
+  0. Comparison ran successfully, found no troublesome differences
+  1. Database connectivity problems
+  2. Error in processing comparison
+  3. Comparison ran, and found irreconcilable differences
+  
+  These return codes should be useful if running scripts to do
+  automated schema analyses.
