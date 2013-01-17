@@ -69,21 +69,16 @@ function extract_schema_data () {
     TTQ="
 create temp table pgd_all_data (
     id serial,
-    object_schema test,
+    object_schema text,
     object_type text,
     object_name text,
     object_definition text
 );
 
-create temp table t_tempschemas (
-    sname text primary key
-);
-insert into t_tempschemas (sname) select nspname from pg_catalog.pg_namespace 
-where nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%';
 "
 
     CQ="insert into pgd_all_data (object_type, object_schema, object_name, object_definition) "
-    TS=" not in (select sname from t_tempschemas)"
+    TS=" not in (select nspname from pg_catalog.pg_namespace where nspname in ${OMITSCHEMAS} or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')"
 
 # Pull data for major object types:
 # Roles
@@ -114,7 +109,7 @@ where table_schema ${TS};"
     TOWN="${CQ}
 select case when c.relkind = 'r' then 'tableowner'
             when c.relkind = 'v' then 'viewowner' end, 
-        n.nspname
+        n.nspname,
         n.nspname || '.' || c.relname, r.rolname
 from pg_class c, pg_namespace n, pg_roles r
 where n.oid = c.relnamespace and r.oid = c.relowner
@@ -165,7 +160,6 @@ select 'functiondefinition', f.schema, f.fqfn,
     routine_definition
 from information_schema.routines r, function_signatures f
 where 
-r.routine_name = f.routine_name and
 r.specific_name = f.specific_name and 
 routine_schema ${TS};"
 
@@ -333,7 +327,7 @@ where r1.label = '${LABEL1}' and
       r1.object_name = r2.object_name;
 
 insert into raw_differences (label1, id1, object_type, object_schema, object_name, object_definition1, difference_type)
-select r1.label, r1.id, r1.object_type, r.object_schema, r1.object_name, r1.object_definition, 'missing in 2nd DB'
+select r1.label, r1.id, r1.object_type, r1.object_schema, r1.object_name, r1.object_definition, 'missing in 2nd DB'
 from data_raw r1
 where not exists (select 1 from data_raw r2 where
                  r1.object_type = r2.object_type and
