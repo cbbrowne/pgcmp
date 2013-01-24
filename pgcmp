@@ -226,7 +226,45 @@ where
    pc.conrelid = c.oid and
    c.relnamespace = n.oid and
    rc.constraint_schema ${TS};"
+
+    TYPES="${CQ}
+select 'data type', n.nspname, n.nspname || '.' || t.typname, 'length:'||t.typlen::text || ',byval:'||t.typbyval::text||',phystype:'||t.typtype||',category:'||t.typcategory||',ispreferred:'||t.typispreferred::text||',delimiter:'||t.typdelim||'input:'||t.typinput::text||'output:'||t.typoutput::text||'receive:'||t.typreceive::text||'send:'||t.typsend::text||'modin:'||t.typmodin::text||'modout:'||t.typmodout::text||'analyze:'||t.typanalyze::text||'align:'||t.typalign::text||'storage:'||t.typstorage::text||'notnull:'||t.typnotnull::text||'typmod:'||t.typtypmod::text||'ndims:'||t.typndims::text||'collation:'||t.typcollation::text
+from pg_catalog.pg_type t, pg_namespace n
+where nspname ${TS}
+and
+   t.typnamespace = n.oid;"
     
+    TYPEOWNERS="${CQ}
+select 'data type owner', n.nspname, n.nspname || '.' || t.typname, u.usename
+from pg_catalog.pg_type t, pg_namespace n, pg_user u
+where nspname ${TS}
+and
+   t.typnamespace = n.oid and u.usesysid = t.typowner;"
+
+    OPERATORS="${CQ}
+select 'operator', n.nspname, n.nspname || '.' || t.oprname,
+'kind:'|| t.oprkind::text ||
+',canmerge:'|| t.oprcanmerge::text ||
+',canhash:'|| t.oprcanhash::text ||
+',left:'|| t.oprleft::text ||
+',right:'|| t.oprright::text ||
+',result:'|| t.oprresult::text ||
+',com:'|| t.oprcom::text ||
+',negate:'|| t.oprnegate::text ||
+',code:'|| t.oprcode::text ||
+',rest:'|| t.oprrest::text ||
+',join:'|| t.oprjoin::text
+from pg_catalog.pg_operator t, pg_catalog.pg_namespace n
+where 
+nspname ${TS} and
+t.oprnamespace = n.oid;"
+    
+    OPOWNERS="${CQ}
+select 'operator owner', n.nspname, n.nspname || '.' || o.oprname, u.usename
+from pg_catalog.pg_operator o, pg_namespace n, pg_user u
+where 
+nspname ${TS} and
+   o.oprnamespace = n.oid and u.usesysid = o.oprowner;"
 
     EVERYTHING="${TTQ} 
 ${RQ} 
@@ -249,6 +287,10 @@ ${TRIGGERS}
 ${CHECKCON}
 ${INDEXES}
 ${FOREIGNKEYS}
+${TYPES}
+${TYPEOWNERS}
+${OPERATORS}
+${OPOWNERS}
 
 \copy (select '${LABEL}', id, object_schema, object_type, object_name, object_definition from pgd_all_data) to '${OUTFILE}';"
 
