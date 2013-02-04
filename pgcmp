@@ -312,8 +312,8 @@ create table data_raw (
 create index db1_tnd on data_raw(object_type, object_name);
 truncate data_raw;
 
-\\copy data_raw (label, object_type, object_schema, object_name, object_definition) from '${COPY1}';
-\\copy data_raw (label, object_type, object_schema, object_name, object_definition) from '${COPY2}';
+\\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${COPY1}';
+\\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${COPY2}';
 
 update data_raw set object_definition = '' where object_definition is null;
 
