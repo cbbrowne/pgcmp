@@ -54,7 +54,6 @@ Unexplained items as explanation: (BADEXPLAIN) [${BADEXPLAIN}]
 
 function extract_schema_data () {
     local LABEL=$1
-    local OUTFILE="${WORKDIR}/${LABEL}.copy"  
     local WHEN=`date`
     echo "-- extract_schema_data.sh {label=${LABEL}}"
     echo "-- extracting schema information into file ${OUTFILE}"
@@ -66,35 +65,25 @@ function extract_schema_data () {
 --   as at ${WHEN}"
 
 # Create temporary table to capture data
-    TTQ="
-create temp table pgd_all_data (
-    id serial,
-    object_schema text,
-    object_type text,
-    object_name text,
-    object_definition text
-);
 
-"
-
-    CQ="insert into pgd_all_data (object_type, object_schema, object_name, object_definition) "
+    CQ=""
     TS=" not in (select nspname from pg_catalog.pg_namespace where nspname in ${OMITSCHEMAS} or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')"
 
 # Pull data for major object types:
 # Roles
     RQ="${CQ} select 'role', NULL::text, rolname, 'rolcreaterole:'|| (rolcreaterole::text) || ',rolcreatedb:' || (rolcreatedb::text) ||',rolcanlogin:'||(rolcanlogin::text)
-from pg_catalog.pg_roles;"
+from pg_catalog.pg_roles"
 
 # Schemas
 # a) Existence
     SCEQ="${CQ}
 select 'schema', schema_name, schema_name, schema_owner from information_schema.schemata
-where schema_name ${TS};"
+where schema_name ${TS}"
 
 # b) Permissions
     SCP="${CQ}
 select 'schemaperms', nspname, nspname, nspacl::text from pg_catalog.pg_namespace
-where nspname ${TS};"
+where nspname ${TS}"
 
 # Tables
     TEQ="${CQ}
@@ -104,7 +93,7 @@ select case when table_type = 'BASE TABLE' then 'table'
 table_schema,
 table_schema || '.' || table_name, NULL::text
 from information_schema.tables
-where table_schema ${TS};"
+where table_schema ${TS}"
 
     TOWN="${CQ}
 select case when c.relkind = 'r' then 'tableowner'
@@ -114,7 +103,7 @@ select case when c.relkind = 'r' then 'tableowner'
 from pg_class c, pg_namespace n, pg_roles r
 where n.oid = c.relnamespace and r.oid = c.relowner
 and c.relkind in ('v', 'r')
-and n.nspname ${TS};"
+and n.nspname ${TS}"
 
     COLS="${CQ}
 select 'column', table_schema, table_schema|| '.' || table_name || '.' || column_name,
@@ -122,73 +111,73 @@ select 'column', table_schema, table_schema|| '.' || table_name || '.' || column
 ',maxlen:' || coalesce(character_maximum_length::text, coalesce(character_octet_length::text, coalesce(numeric_precision::text, 'n/a'))) ||
 ',nullable:'||is_nullable || ',default:' ||  coalesce(column_default, 'NULL')
 from information_schema.columns
-where table_schema not like 'pg_temp_%' and table_schema not like 'pg_toast_temp_%';"
+where table_schema not like 'pg_temp_%' and table_schema not like 'pg_toast_temp_%'"
 
     TPERM="${CQ}
 select case when c.relkind = 'r' then 'tablepermissions'
             when c.relkind = 'S' then 'sequencepermissions'
             when c.relkind = 'v' then 'viewpermissions' end,
        n.nspname,
-       n.nspname || '.' || c.relname, c.relacl
+       n.nspname || '.' || c.relname, c.relacl::text
 from pg_class c, pg_namespace n, pg_roles r
 where n.oid = c.relnamespace and r.oid = c.relowner
 and c.relkind in ('v', 'r', 'S')
-and n.nspname ${TS};"
+and n.nspname ${TS}"
 
     TSEQ="${CQ}
 select 'sequence', sequence_schema, sequence_schema || '.' || sequence_name, 
     'start:' || start_value::text || ',min:' || minimum_value::text || ',max:' || maximum_value::text || ',increment:' || increment::text || ',cycles:' || cycle_option
 from information_schema.sequences 
-where sequence_schema ${TS};"
+where sequence_schema ${TS}"
 
     VDEF="${CQ}
 select 'viewdefinition', table_schema, table_schema|| '.' || table_name, view_definition
 from information_schema.views
-where table_schema ${TS};"
+where table_schema ${TS}"
 
     FCODE="${CQ}
 select 'functiondefinition', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.routine_definition 
 from information_schema.routines r, pg_catalog.pg_proc p 
 where r.specific_name = p.proname || '_' || p.oid 
-   and r.routine_schema ${TS};"
+   and r.routine_schema ${TS}"
 
     FPERM1="${CQ}
 select 'functionperm', rp.specific_schema, p.oid::regprocedure::text || '-role:' || rp.grantee,
 'privilege_type:' || rp.privilege_type || ',is_grantable:' || rp.is_grantable
 from information_schema.routine_privileges rp, pg_proc p
 where rp.specific_name = p.proname || '_' || p.oid 
-  and rp.specific_schema ${TS};"
+  and rp.specific_schema ${TS}"
 
     FOWNER="${CQ}
 select 'functionowner', n.nspname, p.oid::regprocedure::text, r.rolname
 from pg_catalog.pg_roles r, pg_catalog.pg_proc p, pg_catalog.pg_namespace n
 where r.oid = p.proowner and n.oid = p.pronamespace
-   and n.nspname ${TS};"
+   and n.nspname ${TS}"
 
     FLANGUAGE="${CQ}
 select 'functionlanguage', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.external_language
 from information_schema.routines r, pg_catalog.pg_proc p
 where
     r.specific_name = p.proname || '_' || p.oid 
-   and r.specific_schema ${TS};"
+   and r.specific_schema ${TS}"
 
     FSECTYPE="${CQ}
 select 'functionsecuritytype', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.security_type
 from information_schema.routines r, pg_catalog.pg_proc p
 where 
     r.specific_name = p.proname || '_' || p.oid    
-   and r.specific_schema ${TS};"
+   and r.specific_schema ${TS}"
 
     FCONFIG="${CQ}
-select 'functionconfig', n.nspname, p.oid::regprocedure::text, p.proconfig
+select 'functionconfig', n.nspname, p.oid::regprocedure::text, p.proconfig::text
 from pg_catalog.pg_proc p, pg_catalog.pg_namespace n
 where n.oid = p.pronamespace
-   and n.nspname ${TS};"
+   and n.nspname ${TS}"
 
     TRIGGERS="${CQ}
 select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_table || '->' || t.trigger_name ||'/'|| t.event_manipulation, 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
 from information_schema.triggers t
-where t.trigger_schema ${TS};"
+where t.trigger_schema ${TS}"
 
     CHECKCON="${CQ}
 select 'checkconstraint', n.nspname, n.nspname || '.' || r.relname || ':' || c.conname, consrc
@@ -196,12 +185,12 @@ from
    pg_catalog.pg_class r, pg_catalog.pg_namespace n, pg_catalog.pg_constraint c
 where
    r.oid = c.conrelid and n.oid = c.connamespace and c.consrc is not null
-   and n.nspname ${TS};"
+   and n.nspname ${TS}"
 
     INDEXES="${CQ}
 select 'index', schemaname, schemaname || '.' || tablename || ':' || indexname, indexdef
 from pg_catalog.pg_indexes
-where schemaname ${TS};"
+where schemaname ${TS}"
 
     FOREIGNKEYS="${CQ}
 select 'foreign key', constraint_schema, constraint_schema || '.' || c.relname || ':' || constraint_name,
@@ -212,21 +201,21 @@ where
    rc.constraint_name = pc.conname and
    pc.conrelid = c.oid and
    c.relnamespace = n.oid and
-   rc.constraint_schema ${TS};"
+   rc.constraint_schema ${TS}"
 
     TYPES="${CQ}
 select 'data type', n.nspname, n.nspname || '.' || t.typname, 'length:'||t.typlen::text || ',byval:'||t.typbyval::text||',phystype:'||t.typtype||',category:'||t.typcategory||',ispreferred:'||t.typispreferred::text||',delimiter:'||t.typdelim||'input:'||t.typinput::text||'output:'||t.typoutput::text||'receive:'||t.typreceive::text||'send:'||t.typsend::text||'modin:'||t.typmodin::text||'modout:'||t.typmodout::text||'analyze:'||t.typanalyze::text||'align:'||t.typalign::text||'storage:'||t.typstorage::text||'notnull:'||t.typnotnull::text||'typmod:'||t.typtypmod::text||'ndims:'||t.typndims::text||'collation:'||t.typcollation::text
 from pg_catalog.pg_type t, pg_namespace n
 where nspname ${TS}
 and
-   t.typnamespace = n.oid;"
+   t.typnamespace = n.oid"
     
     TYPEOWNERS="${CQ}
 select 'data type owner', n.nspname, n.nspname || '.' || t.typname, u.usename
 from pg_catalog.pg_type t, pg_namespace n, pg_user u
 where nspname ${TS}
 and
-   t.typnamespace = n.oid and u.usesysid = t.typowner;"
+   t.typnamespace = n.oid and u.usesysid = t.typowner"
 
     OPERATORS="${CQ}
 select 'operator', n.nspname, n.nspname || '.' || t.oprname,
@@ -244,55 +233,80 @@ select 'operator', n.nspname, n.nspname || '.' || t.oprname,
 from pg_catalog.pg_operator t, pg_catalog.pg_namespace n
 where 
 nspname ${TS} and
-t.oprnamespace = n.oid;"
+t.oprnamespace = n.oid"
     
     OPOWNERS="${CQ}
 select 'operator owner', n.nspname, n.nspname || '.' || o.oprname, u.usename
 from pg_catalog.pg_operator o, pg_namespace n, pg_user u
 where 
 nspname ${TS} and
-   o.oprnamespace = n.oid and u.usesysid = o.oprowner;"
+   o.oprnamespace = n.oid and u.usesysid = o.oprowner"
 
-    EVERYTHING="${TTQ} 
+    EVERYTHING="
+copy ( with pgd_all_data (object_type, object_schema, object_name, object_definition)
+      as (
 ${RQ} 
+UNION ALL
 ${SCEQ}
+UNION ALL
 ${SCP}
+UNION ALL
 ${TEQ}
+UNION ALL
 ${TOWN}
+UNION ALL
 ${TPERM}
+UNION ALL
 ${COLS}
+UNION ALL
 ${TSEQ}
+UNION ALL
 ${VDEF}
-${FSIGS}
+UNION ALL
 ${FCODE}
+UNION ALL
 ${FPERM1}
+UNION ALL
 ${FOWNER}
+UNION ALL
 ${FLANGUAGE}
+UNION ALL
 ${FSECTYPE}
+UNION ALL
 ${FCONFIG}
+UNION ALL
 ${TRIGGERS}
+UNION ALL
 ${CHECKCON}
+UNION ALL
 ${INDEXES}
+UNION ALL
 ${FOREIGNKEYS}
+UNION ALL
 ${TYPES}
+UNION ALL
 ${TYPEOWNERS}
+UNION ALL
 ${OPERATORS}
-${OPOWNERS}
+UNION ALL
+${OPOWNERS} )
+select '${LABEL}', object_schema, object_type, object_name, object_definition from pgd_all_data)
+to stdout;"
 
-\copy (select '${LABEL}', id, object_schema, object_type, object_name, object_definition from pgd_all_data) to '${OUTFILE}';"
-
-    echo "${EVERYTHING}"
+echo "${EVERYTHING}"
 }
 
 # Run schema extractions
-extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -d ${DB1} -h ${HOST1} -p ${PORT1} -U ${USER1}  > /dev/null 2>&1
+OUTFILE="${WORKDIR}/${LABEL1}.copy"  
+extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -q -d ${DB1} -h ${HOST1} -p ${PORT1} -U ${USER1}  > ${OUTFILE}
 retcode=$?
 if [ $retcode -ne 0 ]; then
     echo "Could not extract schema data for label ${LABEL1} from database PGDATA=${DB1} PGHOST=${HOST1} PGPORT=${PORT1} PGUSER=${USER1}"
     exit 1
 fi
 
-extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -d ${DB2} -h ${HOST2} -p ${PORT2} -U ${USER2}   > /dev/null 2>&1
+OUTFILE="${WORKDIR}/${LABEL2}.copy"  
+extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -q -d ${DB2} -h ${HOST2} -p ${PORT2} -U ${USER2}   > ${OUTFILE}
 if [ $retcode -ne 0 ]; then
     echo "Could not extract schema data for label ${LABEL2} from database PGDATA=${DB2} PGHOST=${HOST2} PGPORT=${PORT2} PGUSER=${USER2}"
     exit 1
@@ -323,8 +337,8 @@ create table data_raw (
 create index db1_tnd on data_raw(object_type, object_name);
 truncate data_raw;
 
-\\copy data_raw from '${COPY1}';
-\\copy data_raw from '${COPY2}';
+\\copy data_raw (label, object_type, object_schema, object_name, object_definition) from '${COPY1}';
+\\copy data_raw (label, object_type, object_schema, object_name, object_definition) from '${COPY2}';
 
 update data_raw set object_definition = '' where object_definition is null;
 
