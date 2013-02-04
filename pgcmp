@@ -146,57 +146,44 @@ select 'viewdefinition', table_schema, table_schema|| '.' || table_name, view_de
 from information_schema.views
 where table_schema ${TS};"
 
-    FSIGS="
-drop table if exists function_signatures;
-create temp table function_signatures as
-select specific_schema as schema, specific_name, specific_schema || '.' || p.oid::regprocedure::text as fqfn
-from information_schema.routines r, pg_proc p
-where r.specific_name = p.proname || '_' || p.oid;
-create index fs_sname on function_signatures(specific_name, schema);
-"
-
     FCODE="${CQ}
-select 'functiondefinition', f.schema, f.fqfn, 
-    routine_definition
-from information_schema.routines r, function_signatures f
-where 
-r.specific_name = f.specific_name and 
-routine_schema ${TS};"
+select 'functiondefinition', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.routine_definition 
+from information_schema.routines r, pg_catalog.pg_proc p 
+where r.specific_name = p.proname || '_' || p.oid 
+   and r.routine_schema ${TS};"
 
     FPERM1="${CQ}
-select 'functionperm', fs.schema, fs.fqfn || '-role:' || rp.grantee,
+select 'functionperm', rp.specific_schema, p.oid::regprocedure::text || '-role:' || rp.grantee,
 'privilege_type:' || rp.privilege_type || ',is_grantable:' || rp.is_grantable
-from function_signatures fs, information_schema.routine_privileges rp
-where fs.specific_name = rp.specific_name 
-  and fs.schema ${TS};"
+from information_schema.routine_privileges rp, pg_proc p
+where rp.specific_name = p.proname || '_' || p.oid 
+  and rp.specific_schema ${TS};"
 
     FOWNER="${CQ}
-select 'functionowner', fs.schema, fs.fqfn, r.rolname
-from function_signatures fs, pg_catalog.pg_roles r, pg_catalog.pg_proc p
-where r.oid = p.proowner and fs.specific_name = p.proname || '_' || p.oid
-   and fs.schema ${TS};"
+select 'functionowner', n.nspname, p.oid::regprocedure::text, r.rolname
+from pg_catalog.pg_roles r, pg_catalog.pg_proc p, pg_catalog.pg_namespace n
+where r.oid = p.proowner and n.oid = p.pronamespace
+   and n.nspname ${TS};"
 
     FLANGUAGE="${CQ}
-select 'functionlanguage', fs.schema, fs.fqfn, r.external_language
-from information_schema.routines r, function_signatures fs
+select 'functionlanguage', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.external_language
+from information_schema.routines r, pg_catalog.pg_proc p
 where
-    fs.schema = r.specific_schema and
-    fs.specific_name = r.specific_name and
-    r.specific_schema ${TS};"
+    r.specific_name = p.proname || '_' || p.oid 
+   and r.specific_schema ${TS};"
 
     FSECTYPE="${CQ}
-select 'functionsecuritytype', fs.schema, fs.fqfn, r.security_type
-from information_schema.routines r, function_signatures fs
+select 'functionsecuritytype', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.security_type
+from information_schema.routines r, pg_catalog.pg_proc p
 where 
-    fs.schema = r.specific_schema and
-    fs.specific_name = r.specific_name and
-    r.specific_schema ${TS};"
+    r.specific_name = p.proname || '_' || p.oid    
+   and r.specific_schema ${TS};"
 
     FCONFIG="${CQ}
-select 'functionconfig', fs.schema, fs.fqfn, p.proconfig
-from function_signatures fs, pg_catalog.pg_proc p
-where fs.specific_name = p.proname || '_' || p.oid
-   and fs.schema ${TS};"
+select 'functionconfig', n.nspname, p.oid::regprocedure::text, p.proconfig
+from pg_catalog.pg_proc p, pg_catalog.pg_namespace n
+where n.oid = p.pronamespace
+   and n.nspname ${TS};"
 
     TRIGGERS="${CQ}
 select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_table || '->' || t.trigger_name ||'/'|| t.event_manipulation, 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
