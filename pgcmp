@@ -157,7 +157,7 @@ from pg_catalog.pg_proc p, pg_catalog.pg_namespace n
 where n.oid = p.pronamespace"
 
     TRIGGERS="
-select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_table || '->' || t.trigger_name ||'/'|| t.event_manipulation, 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
+select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_table || '.' || t.trigger_name ||'/'|| t.event_manipulation, 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
 from information_schema.triggers t"
 
     CHECKCON="
@@ -303,12 +303,19 @@ drop table if exists data_raw;
 create table data_raw (
     label text,
     id serial,
-    primary key (label, id),
+    primary key (id),
     object_schema text,
     object_type text,
     object_name text,
     object_definition text
 );
+comment on data.raw.label is 'Label indicating data source';
+comment on data.raw.id is 'unique value to help construct primary key';
+comment on data.raw.object_schema is 'namespace (pg_namespace) containing the object';
+comment on data.raw.object_type is 'type of object';
+comment on data.raw.object_name is 'fully qualified name of the object';
+comment on data.raw.object_definition is 'definition of the object';
+
 create index db1_tnd on data_raw(object_type, object_name);
 truncate data_raw;
 
@@ -323,13 +330,26 @@ create table raw_differences (
   object_name text,
   object_type text,
   label1 text,
-  id1 integer,
+  id1 integer references data_raw(id),
   object_definition1 text,
-  label2 text,
-  id2 integer,
+  label2 text, 
+  id2 integer references data_raw(id),
   object_definition2 text,
-  difference_type text
+  difference_type text,
+  importance integer
 );
+
+comment on data.raw.object_schema is 'namespace containing the object';
+comment on data.raw.object_name is 'fully qualified object name';
+comment on data.raw.object_type is 'type of object';
+comment on data.raw.label1 is 'Label of 1st data source';
+comment on data.raw.id1 is 'ID of raw data in 1st data source';
+comment on data.raw.object_definition1 is 'Definition of object in 1st data source';
+comment on data.raw.label2 is 'Label of 2nd data source';
+comment on data.raw.id2 is 'ID of raw data in 2nd data source';
+comment on data.raw.object_definition2 is 'Definition of object in 2nd data source';
+comment on data.raw.difference_type is 'type of difference recognized';
+comment on data.raw.importance is 'Priority of difference - low values are most important';
 
 --- Find all the items that generally match...
 insert into raw_differences (label1, id1, object_type, object_schema, object_name, object_definition1, 
@@ -372,8 +392,75 @@ create index rd_label1 on raw_differences(label1);
 create index rd_id1 on raw_differences(id1);
 create index rd_type on raw_differences(object_type);
 create index rd_name on raw_differences(object_name);
+create index rd_schema on raw_differences(object_schema);
 create index rd_label2 on raw_differences(label2);
 create index rd_id2 on raw_differences(id2);
+
+update raw_differences 
+  set importance = NULL
+  where difference_type = 'match';
+
+update raw_differences 
+  set importance = 1
+  where difference_type = 'mismatch';
+
+update raw_differences 
+  set importance = 2
+  where difference_type like 'missing in % DB';
+
+-- If schema is missing, then bump up all importances for all objects
+-- in that schema to indicate diminished importance
+update raw_differences
+  set importance = importance + 1
+  where difference_type like 'missing in %DB' and
+        object_schema in (select object_schema from raw_differences where difference_type like 'missing in %DB' and object_type = 'schema')
+        and object_type <> 'schema' ;
+
+-- If table is missing, then bump up importances for subservient
+-- objects
+
+update raw_differences rd
+  set importance = importance + 1
+  where difference_type like 'missing in %DB' and
+        object_type in ('tableowner', 'tablepermissions', 'trigger', 'column', 'foreign key', 'index') and exists
+        (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
+                       rdt.object_type = 'table' and rdt.object_schema = rd.object_schema and
+                       (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
+
+update raw_differences rd
+  set importance = importance + 1
+  where difference_type like 'missing in %DB' and
+        object_type in ('column', 'viewpermissions', 'viewowner') and exists
+        (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
+                       rdt.object_type = 'view' and rdt.object_schema = rd.object_schema and
+                       (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
+
+update raw_differences rd
+  set importance = importance + 1
+  where difference_type like 'missing in %DB' and
+        object_type in ('sequencepermissions') and exists
+        (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
+                       rdt.object_type = 'sequence' and rdt.object_schema = rd.object_schema and
+                       (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
+
+update raw_differences rd
+  set importance = importance + 1
+  where difference_type like 'missing in %DB' and
+        object_type in ('data type owner') and exists
+        (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
+                       rdt.object_type = 'data type' and rdt.object_schema = rd.object_schema and
+                       (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
+
+update raw_differences rd
+  set importance = importance + 1
+  where difference_type like 'missing in %DB' and
+        object_type in 
+               ('functiondefinition', 'functionconfig', 'functionlanguage',
+                'functionowner', 'functionperm', 'functionsecuritytype')
+         and exists
+        (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
+                       rdt.object_type = 'functiondefinition' and rdt.object_schema = rd.object_schema and
+                       (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
 
 drop table if exists expected_differences;
 create table expected_differences (
