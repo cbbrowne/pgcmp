@@ -76,7 +76,7 @@ select 'schema', schema_name, schema_name, schema_owner from information_schema.
 
 # b) Permissions
     SCP="
-select 'schemaperms', nspname, nspname, nspacl::text from pg_catalog.pg_namespace"
+select 'schema permissions', nspname, nspname, nspacl::text from pg_catalog.pg_namespace"
 
 # Tables
     TEQ="
@@ -88,8 +88,8 @@ table_schema || '.' || table_name, NULL::text
 from information_schema.tables"
 
     TOWN="
-select case when c.relkind = 'r' then 'tableowner'
-            when c.relkind = 'v' then 'viewowner' end, 
+select case when c.relkind = 'r' then 'table owner'
+            when c.relkind = 'v' then 'view owner' end, 
         n.nspname,
         n.nspname || '.' || c.relname, r.rolname
 from pg_class c, pg_namespace n, pg_roles r
@@ -104,9 +104,9 @@ select 'column', table_schema, table_schema|| '.' || table_name || '.' || column
 from information_schema.columns"
 
     TPERM="
-select case when c.relkind = 'r' then 'tablepermissions'
-            when c.relkind = 'S' then 'sequencepermissions'
-            when c.relkind = 'v' then 'viewpermissions' end,
+select case when c.relkind = 'r' then 'table permissions'
+            when c.relkind = 'S' then 'sequence permissions'
+            when c.relkind = 'v' then 'view permissions' end,
        n.nspname,
        n.nspname || '.' || c.relname, c.relacl::text
 from pg_class c, pg_namespace n, pg_roles r
@@ -119,40 +119,40 @@ select 'sequence', sequence_schema, sequence_schema || '.' || sequence_name,
 from information_schema.sequences"
 
     VDEF="
-select 'viewdefinition', table_schema, table_schema|| '.' || table_name, view_definition
+select 'view definition', table_schema, table_schema|| '.' || table_name, view_definition
 from information_schema.views"
 
 
     FCODE="
-select 'functiondefinition', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.routine_definition 
+select 'function definition', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.routine_definition 
 from information_schema.routines r, pg_catalog.pg_proc p 
 where r.specific_name = p.proname || '_' || p.oid "
 
     FPERM1="
-select 'functionperm', rp.specific_schema, p.oid::regprocedure::text || '-role:' || rp.grantee,
+select 'function permissions', rp.specific_schema, p.oid::regprocedure::text || '-role:' || rp.grantee,
 'privilege_type:' || rp.privilege_type || ',is_grantable:' || rp.is_grantable
 from information_schema.routine_privileges rp, pg_proc p
 where rp.specific_name = p.proname || '_' || p.oid"
 
     FOWNER="
-select 'functionowner', n.nspname, p.oid::regprocedure::text, r.rolname
+select 'function owner', n.nspname, p.oid::regprocedure::text, r.rolname
 from pg_catalog.pg_roles r, pg_catalog.pg_proc p, pg_catalog.pg_namespace n
 where r.oid = p.proowner and n.oid = p.pronamespace"
 
     FLANGUAGE="
-select 'functionlanguage', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.external_language
+select 'function language', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.external_language
 from information_schema.routines r, pg_catalog.pg_proc p
 where
     r.specific_name = p.proname || '_' || p.oid "
 
     FSECTYPE="
-select 'functionsecuritytype', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.security_type
+select 'function security type', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.security_type
 from information_schema.routines r, pg_catalog.pg_proc p
 where 
     r.specific_name = p.proname || '_' || p.oid"
 
     FCONFIG="
-select 'functionconfig', n.nspname, p.oid::regprocedure::text, p.proconfig::text
+select 'function config', n.nspname, p.oid::regprocedure::text, p.proconfig::text
 from pg_catalog.pg_proc p, pg_catalog.pg_namespace n
 where n.oid = p.pronamespace"
 
@@ -161,7 +161,7 @@ select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_ta
 from information_schema.triggers t"
 
     CHECKCON="
-select 'checkconstraint', n.nspname, n.nspname || '.' || r.relname || ':' || c.conname, consrc
+select 'check constraint', n.nspname, n.nspname || '.' || r.relname || ':' || c.conname, consrc
 from
    pg_catalog.pg_class r, pg_catalog.pg_namespace n, pg_catalog.pg_constraint c
 where
@@ -309,12 +309,12 @@ create table data_raw (
     object_name text,
     object_definition text
 );
-comment on data.raw.label is 'Label indicating data source';
-comment on data.raw.id is 'unique value to help construct primary key';
-comment on data.raw.object_schema is 'namespace (pg_namespace) containing the object';
-comment on data.raw.object_type is 'type of object';
-comment on data.raw.object_name is 'fully qualified name of the object';
-comment on data.raw.object_definition is 'definition of the object';
+comment on column data_raw.label is 'Label indicating data source';
+comment on column data_raw.id is 'unique value to help construct primary key';
+comment on column data_raw.object_schema is 'namespace (pg_namespace) containing the object';
+comment on column data_raw.object_type is 'type of object';
+comment on column data_raw.object_name is 'fully qualified name of the object';
+comment on column data_raw.object_definition is 'definition of the object';
 
 create index db1_tnd on data_raw(object_type, object_name);
 truncate data_raw;
@@ -339,17 +339,17 @@ create table raw_differences (
   importance integer
 );
 
-comment on data.raw.object_schema is 'namespace containing the object';
-comment on data.raw.object_name is 'fully qualified object name';
-comment on data.raw.object_type is 'type of object';
-comment on data.raw.label1 is 'Label of 1st data source';
-comment on data.raw.id1 is 'ID of raw data in 1st data source';
-comment on data.raw.object_definition1 is 'Definition of object in 1st data source';
-comment on data.raw.label2 is 'Label of 2nd data source';
-comment on data.raw.id2 is 'ID of raw data in 2nd data source';
-comment on data.raw.object_definition2 is 'Definition of object in 2nd data source';
-comment on data.raw.difference_type is 'type of difference recognized';
-comment on data.raw.importance is 'Priority of difference - low values are most important';
+comment on column raw_differences.object_schema is 'namespace containing the object';
+comment on column raw_differences.object_name is 'fully qualified object name';
+comment on column raw_differences.object_type is 'type of object';
+comment on column raw_differences.label1 is 'Label of 1st data source';
+comment on column raw_differences.id1 is 'ID of raw data in 1st data source';
+comment on column raw_differences.object_definition1 is 'Definition of object in 1st data source';
+comment on column raw_differences.label2 is 'Label of 2nd data source';
+comment on column raw_differences.id2 is 'ID of raw data in 2nd data source';
+comment on column raw_differences.object_definition2 is 'Definition of object in 2nd data source';
+comment on column raw_differences.difference_type is 'type of difference recognized';
+comment on column raw_differences.importance is 'Priority of difference - low values are most important';
 
 --- Find all the items that generally match...
 insert into raw_differences (label1, id1, object_type, object_schema, object_name, object_definition1, 
@@ -422,7 +422,7 @@ update raw_differences
 update raw_differences rd
   set importance = importance + 1
   where difference_type like 'missing in %DB' and
-        object_type in ('tableowner', 'tablepermissions', 'trigger', 'column', 'foreign key', 'index') and exists
+        object_type in ('table owner', 'table permissions', 'trigger', 'column', 'foreign key', 'index') and exists
         (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
                        rdt.object_type = 'table' and rdt.object_schema = rd.object_schema and
                        (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
@@ -430,7 +430,7 @@ update raw_differences rd
 update raw_differences rd
   set importance = importance + 1
   where difference_type like 'missing in %DB' and
-        object_type in ('column', 'viewpermissions', 'viewowner') and exists
+        object_type in ('column', 'view permissions', 'view owner', 'view definition') and exists
         (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
                        rdt.object_type = 'view' and rdt.object_schema = rd.object_schema and
                        (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
@@ -438,7 +438,7 @@ update raw_differences rd
 update raw_differences rd
   set importance = importance + 1
   where difference_type like 'missing in %DB' and
-        object_type in ('sequencepermissions') and exists
+        object_type in ('sequence permissions') and exists
         (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
                        rdt.object_type = 'sequence' and rdt.object_schema = rd.object_schema and
                        (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
@@ -455,8 +455,8 @@ update raw_differences rd
   set importance = importance + 1
   where difference_type like 'missing in %DB' and
         object_type in 
-               ('functiondefinition', 'functionconfig', 'functionlanguage',
-                'functionowner', 'functionperm', 'functionsecuritytype')
+               ('function definition', 'function config', 'function language',
+                'function owner', 'function permissions', 'function security type')
          and exists
         (select 1 from raw_differences rdt where rdt.difference_type like 'missing in %DB' and
                        rdt.object_type = 'functiondefinition' and rdt.object_schema = rd.object_schema and
@@ -474,11 +474,48 @@ create table expected_differences (
 
 \\copy expected_differences from '${EXPLANATIONS}';
 
+drop table if exists object_types;
+create table object_types (
+   object_type text primary key,
+   description text
+);
+
+insert into object_types (object_type, description)
+values 
+('index', 'index on table'),
+('check constraint', 'CHECK constraint on table'),
+('foreign key', 'foreign key constraint'),
+('data type', 'data type'),
+('data type owner', 'owner of data type'),
+('function config', 'stored function configuration (SET values and such)'),
+('function definition', 'definition of stored function'),
+('function language', 'language of implementation of stored function'),
+('function owner', 'who owns this stored function?'),
+('function security type', 'stored function SECURITY DEFINER (ala setuid)'),
+('function permissions', 'per-role privileges for a stored function'),
+('trigger', 'trigger'),
+('operator', 'operator'),
+('operator owner', 'owner of operator'),
+('view definition', 'definition of VIEW'),
+('view', 'basic information about VIEW'),
+('view owner', 'owner of VIEW'),
+('view permissions', 'permissions on VIEW'),
+('table definition', 'definition of TABLE'),
+('table', 'basic information about TABLE'),
+('table owner', 'owner of TABLE'),
+('table permissions', 'permissions on TABLE'),
+('schema', 'schema/NAMESPACE'),
+('schema permissions', 'permissions for schema'),
+('sequence', 'sequence object'),
+('sequence permissions', 'permissions for sequence object'),
+('role', 'role (user/abstract role)'),
+('column', 'attribute of table/view/sequence');
+
 drop table if exists fulloutput;
 create table fulloutput (
   object_name text,
   object_schema text,
-  object_type text,
+  object_type text references object_types(object_type),
   label1 text,
   object_definition1 text,
   label2 text,
