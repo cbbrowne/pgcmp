@@ -70,7 +70,7 @@
             and others that run only on replica nodes (/e.g./ -
             ~denyaccess()~).
 ** The Comparison Script
-   ~pgcmp~ tooling consists of the script ~pgcmp.sh~.
+   ~pgcmp~ tooling consists of the script ~pgcmp~.
 
    This script pulls data about the schema from the two databases that
    are to be compared, loads that data into a third database where
