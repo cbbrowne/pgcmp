@@ -469,6 +469,7 @@ create table expected_differences (
     object_name text,
     difference_type text,
     difference_cause text,
+    importance integer,
     primary key(object_type, object_name, difference_type, difference_cause)
 );
 
@@ -521,52 +522,53 @@ create table fulloutput (
   label2 text,
   object_definition2 text,
   difference_type text,
-  difference_cause text
+  difference_cause text,
+  importance integer
 );
 create index fo_main on fulloutput(object_name, object_type);
 
 --- Perform full reconciliation
 
 --- 1.   Expected case: perfect match, no explanation needed OR PROVIDED
-insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
-select object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, NULL::text
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
+select object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, NULL::text, importance
 from raw_differences r where difference_type = 'match' and not exists
 (select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
 
 --- 2.  Not so much expected...  Perfect match, but we have a
 ---     reconciling entry indicating why there *shouldn't* be a match
 
-insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
-select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause, r.importance
 from raw_differences r, expected_differences d where r.difference_type = 'match' and 
 r.object_name = d.object_name and r.object_type = d.object_type;
 
 --- 3.  Expected...   missing, and explained...
 
-insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
-select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause, r.importance
 from raw_differences r, expected_differences d where r.difference_type in ('missing in 1st DB', 'missing in 2nd DB') and 
 r.object_name = d.object_name and r.object_type = d.object_type;
 
 --- 4.  Not expected...   missing, and NOT explained...
 
-insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
-select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text, r.importance
 from raw_differences r where r.difference_type in ('missing in 1st DB', 'missing in 2nd DB') and 
 not exists 
 (select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
 
 --- 5.  Expected...   mismatch, and explained...
 
-insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
-select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, d.difference_cause, r.importance
 from raw_differences r, expected_differences d where r.difference_type in ('mismatch') and 
 r.object_name = d.object_name and r.object_type = d.object_type;
 
 --- 6.  Not expected...   missing, and NOT explained...
 
-insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause)
-select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text, r.importance
 from raw_differences r where r.difference_type in ('mismatch') and 
 not exists 
 (select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
@@ -582,11 +584,12 @@ create table unexplained_items (
   label2 text,
   id2 integer,
   object_definition2 text,
-  difference_type text
+  difference_type text,
+  importance integer
 );
 
-insert into unexplained_items (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type)
-select object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type
+insert into unexplained_items (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, importance)
+select object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, importance
 from raw_differences r
 where r.difference_type not in ('match') and
 not exists 
@@ -597,23 +600,23 @@ not exists
 
 drop table if exists badexplanations_items;
 create table badexplanations_items as
-select object_type, object_schema, object_name, difference_type, 'Not Yet Properly Explained'::text as difference_cause
+select object_type, object_schema, object_name, difference_type, 'Not Yet Properly Explained'::text as difference_cause, importance
 from unexplained_items
 union all
-select object_type, object_schema, object_name, difference_type, 'Still Not Properly Explained'::text as difference_cause
+select object_type, object_schema, object_name, difference_type, 'Still Not Properly Explained'::text as difference_cause, importance
 from expected_differences where difference_cause in ('Not Properly Yet Explained', 'Still Not Properly Explained')
 union all
-select object_type, object_schema, object_name, difference_type, 'Misexplained'
+select object_type, object_schema, object_name, difference_type, 'Misexplained', importance
 from expected_differences d 
   where exists (select 1 from raw_differences r where r.object_type = d.object_type and r.object_name = d.object_name and r.difference_type <> d.difference_type);
 
 \echo Results Summary
-select object_type, difference_type, difference_cause, count(*) from fulloutput group by 2, 1, 3 order by 2, 1, 3;
+select object_type, difference_type, difference_cause, importance, count(*) from fulloutput group by 2, 1, 3, 4 order by 4, 2, 1, 3;
 
 \\copy badexplanations_items to '${BADEXPLAIN}';
 
 \echo Inadequately Explained Items
-select object_type, object_name, difference_type, difference_cause from badexplanations_items order by object_type, object_name;
+select object_type, object_name, difference_type, difference_cause, importance from badexplanations_items order by object_type, object_name;
 
 "
 echo "${COMPARESCRIPT}" > ${WORKDIR}/load-comparison-data.sql

@@ -158,7 +158,8 @@ create table fulloutput (
   label2 text,
   object_definition2 text,
   difference_type text,
-  difference_cause text
+  difference_cause text,
+  importance integer
 );
 #+END_EXAMPLE
 	- UNEXPLAINED :: A list of objects where discrepancies were not explained, defaults to
@@ -174,7 +175,8 @@ create table unexplained_items (
   label2 text,
   id2 integer,
   object_definition2 text,
-  difference_type text
+  difference_type text,
+  importance integer
 );
 #+END_EXAMPLE
 	- BADEXPLAIN :: A list of objects where discrepancies were incorrectly explained, defaults to
@@ -183,12 +185,62 @@ create table unexplained_items (
 #+BEGIN_EXAMPLE
 create table badexplanations_items (
   object_type text,
+  object_schema text,
   object_name text,
-  difference_type,
-  difference_cause
+  difference_type text,
+  difference_cause text,
+  importance integer
 );
 #+END_EXAMPLE
 
+         - Interpretations:
+	   - object_type :: Indicates which kind of object had a difference
+	   - object_schema :: Indicates the namespace where the object occurs
+	   - object_name :: Fully qualified name of the object
+	   - difference_type :: Kind of difference, one of
+                | type              | description                             |
+                |-------------------+-----------------------------------------|
+                | match             | perfect match across the databases      |
+                | mismatch          | values differ between databases         |
+                | missing in 1st DB | exists in 2nd database, but not 1st one |
+                | missing in 2nd DB | exists in 1st database, but not 2nd one |
+           - difference_cause :: Indicates whether a difference has
+                been explained satisfactorily via the
+                ~explanations.txt~ data
+	     - Not Yet Properly Explained :: Indicates the difference
+                  has not been explained at all
+	     - Still Not Properly Explained :: Indicates that
+                  ~explanations.txt~ indicates that the problem was
+                  not explained.  In effect, the administrator took
+                  the data straight out of an earlier ~pgcmp~ run, and
+                  tried to use it as an explanation, as opposed to
+                  analyzing it to determine what should be done about
+                  it.
+	     - Misexplained :: Indicates that the explanation in the
+                               ~explanations.txt~ file indicated a
+                               different sort of ~difference_type~
+                               than was found by ~pgcmp~.
+	   - importance :: Indicates how crucial a discrepancy is.
+                           Low ~importance~ values indicate the most
+                           crucial items.  Generally:
+	     - NULL :: no discrepancy found; no difference to be examined
+	     - 1 :: mismatch between databases, likely indicating a problem to be fixed
+	     - 2 :: object is present in one database, absent in the other
+	     - 3 or more :: object is present in one database, absent
+                            in the other, but is a "child" of some
+                            other missing object.  For instance, if a
+                            schema is missing, then that would be
+                            indicated as ~importance=2~, the tables,
+                            views, sequences, and such, in that schema
+                            that are missing in one database would be
+                            marked with ~importance=3~, and columns,
+                            indexes, and other attributes of
+                            tables/views/sequences would be marked
+                            with ~importance=4~.  The items with
+                            ~importance~ of 3 or 4 are the consequence
+                            of the ~importance=2~ item; the focus of
+                            an analyst should be in the high
+                            ~importance~ (1,2) items.
 **** Input File: ~explanations.txt~
      There is one input file, ~explanations.txt~.  It provides a set
      of *explanation* items that allow an administrator to indicate
@@ -213,6 +265,7 @@ create table expected_differences (
     object_name text,
     difference_type text,
     difference_cause text,
+    importance integer
     primary key(object_type, object_name, difference_type, difference_cause)
 );
 #+END_EXAMPLE
@@ -254,7 +307,6 @@ unexplained_items where object_name like 'dotpro_conversion%';
      - Files containing details
      - Return codes useful for determining success/failure
 **** Brief Report
-
       Here is an example of running a comparison between two schemas
       for DotPro from different environments.  It has several
       sections:
@@ -311,7 +363,6 @@ Number of items inadequately explained: 166 /tmp/badexplanations.txt
           there should have been a different definition (which
           indicates that the object was expected to be found in both
           databases).
-		      
 **** Return Codes
 
       If errors are encountered, the script ~pgcmp.sh~
