@@ -1,0 +1,39 @@
+column	s1	s1.t1.c2	mismatch	Not Yet Properly Explained	1
+schema	s2	s2	missing in 2nd DB	Not Yet Properly Explained	2
+column	s1	s1.t1.c5	missing in 2nd DB	Not Yet Properly Explained	2
+function definition	s2	s2.s2.f1()	missing in 2nd DB	Not Yet Properly Explained	3
+view owner	s2	s2.d1	missing in 2nd DB	Not Yet Properly Explained	4
+column	s2	s2.d1.c5	missing in 2nd DB	Not Yet Properly Explained	4
+column	s2	s2.d1.c2	missing in 2nd DB	Not Yet Properly Explained	4
+column	s2	s2.d1.c3	missing in 2nd DB	Not Yet Properly Explained	4
+column	s2	s2.d1.c4	missing in 2nd DB	Not Yet Properly Explained	4
+column	s2	s2.d1.c1	missing in 2nd DB	Not Yet Properly Explained	4
+view definition	s2	s2.d1	missing in 2nd DB	Not Yet Properly Explained	4
+trigger	s1	s1.t1.trigger_1/UPDATE	missing in 2nd DB	Not Yet Properly Explained	2
+column	s1	s1.t1.c7	missing in 1st DB	Not Yet Properly Explained	2
+sequence	s1	s1.t3_t3_c1_seq	missing in 1st DB	Not Yet Properly Explained	2
+index	s1	s1.t3:t3_pkey	missing in 1st DB	Not Yet Properly Explained	2
+index	s1	s1.t3:t3_t3_c2_key	missing in 1st DB	Not Yet Properly Explained	2
+data type	s1	s1.t3_t3_c1_seq	missing in 1st DB	Not Yet Properly Explained	2
+data type	s1	s1.t3	missing in 1st DB	Not Yet Properly Explained	2
+data type	s1	s1._t3	missing in 1st DB	Not Yet Properly Explained	2
+table	s1	s1.t3	missing in 1st DB	Not Yet Properly Explained	2
+function owner	s2	s2.f1()	missing in 2nd DB	Not Yet Properly Explained	3
+function language	s2	s2.s2.f1()	missing in 2nd DB	Not Yet Properly Explained	3
+function security type	s2	s2.s2.f1()	missing in 2nd DB	Not Yet Properly Explained	3
+data type	s2	s2.d1	missing in 2nd DB	Not Yet Properly Explained	3
+data type	s2	s2._d1	missing in 2nd DB	Not Yet Properly Explained	3
+schema permissions	s2	s2	missing in 2nd DB	Not Yet Properly Explained	3
+view	s2	s2.d1	missing in 2nd DB	Not Yet Properly Explained	3
+function config	s2	s2.f1()	missing in 2nd DB	Not Yet Properly Explained	3
+table owner	s1	s1.t3	missing in 1st DB	Not Yet Properly Explained	3
+column	s1	s1.t3.t3_c1	missing in 1st DB	Not Yet Properly Explained	3
+column	s1	s1.t3.t3_c2	missing in 1st DB	Not Yet Properly Explained	3
+table permissions	s1	s1.t3	missing in 1st DB	Not Yet Properly Explained	3
+view permissions	s2	s2.d1	missing in 2nd DB	Not Yet Properly Explained	4
+sequence permissions	s1	s1.t3_t3_c1_seq	missing in 1st DB	Not Yet Properly Explained	3
+data type owner	s1	s1.t3_t3_c1_seq	missing in 1st DB	Not Yet Properly Explained	3
+data type owner	s1	s1.t3	missing in 1st DB	Not Yet Properly Explained	3
+data type owner	s1	s1._t3	missing in 1st DB	Not Yet Properly Explained	3
+data type owner	s2	s2.d1	missing in 2nd DB	Not Yet Properly Explained	4
+data type owner	s2	s2._d1	missing in 2nd DB	Not Yet Properly Explained	4

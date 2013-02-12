@@ -1,0 +1,15 @@
+* README
+
+  A simple test...
+
+  Load database #1 with ~schema1.sql~, then database #2 with
+  ~schema1.sql~ /and/ ~schema2.sql~, which alters things by adding,
+  removing, and modifying objects.
+
+  Then run ~pgcmp~ against them.  The differences should be rather
+  suggestable by virtue of the modifications made in ~schema2.sql~.
+
+  The script ~run-tests.sh~ does this, using databases:
+  - test1 :: contains ~schema1~
+  - test2 :: contains ~schema1+2~
+  - comparisondatabase :: used to contain the comparison
