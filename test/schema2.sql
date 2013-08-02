@@ -3,6 +3,10 @@ drop schema if exists s2 cascade;
 alter table s1.t1
   drop column c5;
 
+alter table s1.t1 set (fillfactor=80);
+
+alter index s1.t1_c6 set (fillfactor=50);
+
 alter table s1.t1
   add column c7 integer;
 

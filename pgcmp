@@ -103,6 +103,13 @@ select 'column', table_schema, table_schema|| '.' || table_name || '.' || column
 ',nullable:'||is_nullable || ',default:' ||  coalesce(column_default, 'NULL')
 from information_schema.columns"
 
+    TSTORAGE="
+select 'options', n.nspname,
+        n.nspname || '.' || c.relname, 
+        unnest(c.reloptions)
+from pg_class c, pg_namespace n
+where n.oid = c.relnamespace and c.reloptions is not null"
+
     TPERM="
 select case when c.relkind = 'r' then 'table permissions'
             when c.relkind = 'S' then 'sequence permissions'
@@ -227,6 +234,8 @@ UNION ALL
 ${TEQ}
 UNION ALL
 ${TOWN}
+UNION ALL
+${TSTORAGE}
 UNION ALL
 ${TPERM}
 UNION ALL

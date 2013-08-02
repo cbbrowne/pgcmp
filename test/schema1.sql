@@ -8,7 +8,9 @@ create table s1.t1 (
   c4 timestamptz default now() not null,
   c5 d1,
   c6 d2
-);
+) with (fillfactor=75);
+
+create index t1_c6 on s1.t1(c6);
 
 create sequence s1.seq1 start with 150 cache 10 maxvalue 150000 cycle ;
 create sequence s1.seq2;
