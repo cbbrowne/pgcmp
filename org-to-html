@@ -4,6 +4,10 @@ require 'org-ruby'
 
 # This script transforms the documentation file README.org, written in
 # Emacs OrgMode, into HTML
+#     http://orgmode.org/worg/org-tutorials/org-ruby.html
+# Requires the org-ruby gem, which may be installed via:
+#    gem install org-ruby
+#    (likely needs to be run as root, or via sudo)
 
 data = IO.read('README.org')
 fd = IO.sysopen("README.html", "w")

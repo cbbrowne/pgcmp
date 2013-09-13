@@ -383,3 +383,24 @@ Number of items inadequately explained: 166 /tmp/badexplanations.txt
 
       These return codes should be useful if running scripts to do
       automated schema analyses.
+** Installation Requirements
+
+   ~pgcmp~ is implemented as a shell script (expects to be run using
+   ~/bin/bash~), and thus requires:
+
+   - Bash :: Available as ~/bin/bash~
+   - psql :: Available from a Postgres installation
+
+   If building an RPM file, this documentation, in ~README.org~, is
+   transformed to HTML using a Ruby script that uses a Ruby "gem"
+   called ~org-ruby~.
+
+   There are several ways the ~org-ruby~ gem may be installed:
+
+   - Manual Installation of Ruby Gem :: This Gem may be installed via
+        the command ~gem install org-ruby~.  On many systems, this
+        would need to be run by the ~root~ user, perhaps using ~sudo~.
+
+   - Packaged Installation :: On Debian (and perhaps derivatives such
+        as Ubuntu), this gem is contained by the package ~ruby-org~,
+        and hence may be installed via ~apt-get install ruby-org~.
