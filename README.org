@@ -168,6 +168,7 @@ create table fulloutput (
 #+BEGIN_EXAMPLE
 create table unexplained_items (
   object_name text,
+  object_schema text,
   object_type text,
   label1 text,
   id1 integer,
@@ -262,10 +263,11 @@ create table badexplanations_items (
 #+BEGIN_EXAMPLE
 create table expected_differences (
     object_type text,
+    object_schema text,
     object_name text,
     difference_type text,
     difference_cause text,
-    importance integer
+    importance integer,
     primary key(object_type, object_name, difference_type, difference_cause)
 );
 #+END_EXAMPLE
@@ -278,20 +280,22 @@ create table expected_differences (
       "explained" differences.
 
 #+BEGIN_EXAMPLE
-insert into expected_differences (object_type, object_name,
-difference_type, difference_cause) select object_type, object_name,
-difference_type, 'Slony objects only in production' from unexplained_items
-where object_name like '_oxrspro%';
+insert into expected_differences (object_type, object_schema,
+object_name, difference_type, difference_cause) select object_type,
+object_schema, object_name, difference_type, 'Slony objects only in
+production' from unexplained_items where object_name like '_oxrspro%';
 
-insert into expected_differences (object_type, object_name,
-difference_type, difference_cause) select object_type, object_name,
-difference_type, 'contrib objects only in production' from unexplained_items
-where object_name like 'postgres_contrib%';
+insert into expected_differences (object_type, object_schema,
+object_name, difference_type, difference_cause) select object_type,
+object_schema, object_name, difference_type, 'contrib objects only in
+production' from unexplained_items where object_name like
+'postgres_contrib%';
 
-insert into expected_differences (object_type, object_name,
-difference_type, difference_cause) select object_type, object_name,
-difference_type, 'Conversion objects to be removed from production' from
-unexplained_items where object_name like 'dotpro_conversion%';
+insert into expected_differences (object_type, object_schema,
+object_name, difference_type, difference_cause) select object_type,
+object_schema, object_name, difference_type, 'Conversion objects to be
+removed from production' from unexplained_items where object_name like
+'dotpro_conversion%';
 
 \copy expected_differences to '/tmp/expected_differences.txt';
 #+END_EXAMPLE
