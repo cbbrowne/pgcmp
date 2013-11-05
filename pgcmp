@@ -65,6 +65,10 @@ function extract_schema_data () {
 --   as at ${WHEN}"
 
 # Pull data for major object types:
+
+# BLANK is just a place-holder to establish the names and data types for the elements in the giant UNION query
+    BLANK=" select 'header'::text as object_type, 'schema'::text as object_schema, 'name'::text as object_name, 'definition'::text as object_definition "
+
 # Roles
     RQ=" select 'role', NULL::text, rolname, 'rolcreaterole:'|| (rolcreaterole::text) || ',rolcreatedb:' || (rolcreatedb::text) ||',rolcanlogin:'||(rolcanlogin::text)
 from pg_catalog.pg_roles"
@@ -225,6 +229,8 @@ where
     EVERYTHING="
 copy ( with pgd_all_data (object_type, object_schema, object_name, object_definition)
       as (
+${BLANK}
+UNION ALL
 ${RQ} 
 UNION ALL
 ${SCEQ}
@@ -519,7 +525,8 @@ values
 ('sequence', 'sequence object'),
 ('sequence permissions', 'permissions for sequence object'),
 ('role', 'role (user/abstract role)'),
-('column', 'attribute of table/view/sequence');
+('column', 'attribute of table/view/sequence'),
+('options', 'table storage options');
 
 drop table if exists fulloutput;
 create table fulloutput (
