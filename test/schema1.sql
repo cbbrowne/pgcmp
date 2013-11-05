@@ -32,3 +32,15 @@ $$ language plpgsql;
 
 create trigger trigger_1 after update on s1.t1 
 execute procedure s2.f1();
+
+create or replace function some_overloaded_function (p1 text, p2 text, p3 integer, p4 timestamptz, p5 bigint) returns integer as $$
+begin
+   return 0;
+end
+$$ language plpgsql;
+
+create or replace function some_overloaded_function (p1 integer, p2 integer, p3 text, p4 timestamptz, p5 bigint, p6 uuid) returns integer as $$
+begin
+   return 0;
+end
+$$ language plpgsql;

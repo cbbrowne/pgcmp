@@ -17,3 +17,9 @@ create table s1.t3 (
   t3_c1 serial primary key,
   t3_c2 text not null unique
 );
+
+create or replace function some_overloaded_function (p1 integer, p2 integer, p3 text, p4 timestamptz, p5 bigint, p6 uuid, p7 text) returns integer as $$
+begin
+   return 0;
+end
+$$ language plpgsql;
