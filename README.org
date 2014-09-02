@@ -43,9 +43,7 @@
                         to help with monitoring.
        - Supplementary Applications :: Some applications have add-ons,
             and, when considering the main application, we may wish to
-            exclude add-ons.  An example of this is the DNS
-            Distributor, which adds additional tables, functions, and
-            triggers that are not considered part of "registry" code.
+            exclude add-ons.
        - Specialized Ownership :: Often, different users are used in
             production than are used in development.
      - As a result, when reconciling the "old" schema version against
@@ -62,8 +60,7 @@
        and the "production" schema.  When comparing replicas,
        differences should be considered rather more dangerous.
        Differences to accept/accommodate include:
-       - Node-specific deployment :: In some cases, add-ons (/e.g./ -
-            *DNS Distributor*) are only installed on certain nodes in
+       - Node-specific deployment :: In some cases, add-ons are only installed on certain nodes in
             the cluster.
        - Origin/Replica differences :: Slony defines some triggers
             that run only on origin nodes (/e.g./ - ~logtrigger()~),
