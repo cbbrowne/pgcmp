@@ -80,7 +80,7 @@ select 'schema', schema_name, schema_name, schema_owner from information_schema.
 
 # b) Permissions
     SCP="
-select 'schema permissions', nspname, nspname, nspacl::text from pg_catalog.pg_namespace"
+select 'schema permissions', nspname, nspname, unnest(nspacl)::text from pg_catalog.pg_namespace"
 
 # Tables
     TEQ="
@@ -119,7 +119,7 @@ select case when c.relkind = 'r' then 'table permissions'
             when c.relkind = 'S' then 'sequence permissions'
             when c.relkind = 'v' then 'view permissions' end,
        n.nspname,
-       n.nspname || '.' || c.relname, c.relacl::text
+       n.nspname || '.' || c.relname, unnest(c.relacl)::text
 from pg_class c, pg_namespace n, pg_roles r
 where n.oid = c.relnamespace and r.oid = c.relowner
 and c.relkind in ('v', 'r', 'S')"
