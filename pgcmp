@@ -69,6 +69,7 @@ case $ERR in
 	  exit 1
 	  ;;
 esac
+
 	  
 
 ### Capture default URI based on what's in the environment
@@ -100,6 +101,26 @@ OMITSCHEMAS=${OMITSCHEMAS:-"('pg_catalog','information_schema')"}
 LABEL1=${LABEL1:-`echo "${URI1}" | sed 's/postgresql\:\/\///g' | sed 's/\//\:/g'`}
 LABEL2=${LABEL2:-`echo "${URI2}" | sed 's/postgresql\:\/\///g' | sed 's/\//\:/g'`}
 
+case $PGCMPACTION in
+    dump1)
+	echo "Action: dump1 - dumping data for ${URI1}"
+	;;
+    dump2)
+	echo "Action: dump2 - dumping data for ${URI2}"
+	;;
+    dump)
+	echo "Action: dump - dumping data for both ${URI1} and ${URI2}"
+	;;
+    compare)
+	echo "Action: compare - load data for both databases, perform comparison"
+	;;
+    *)
+	echo "Action: [${PGCMPACTION}] - not in dump1, dump2, dump, compare"
+	exit 1
+	;;
+esac
+	
+
 EXPLANATIONS=${EXPLANATIONS:-"${WORKDIR}/explanations.txt"}
 FULLOUTPUT=${FULLOUTPUT:-"${WORKDIR}/fulloutput.txt"}
 UNEXPLAINED=${UNEXPLAINED:-"${WORKDIR}/unexplained.txt"}
@@ -111,7 +132,7 @@ echo "Generating schema from databases:
    URI1 - ${URI1}
    URI2 - ${URI2}
 
-Output to:
+Data Files containing schema data:
   ${COPY1}
   ${COPY2}
 
@@ -361,27 +382,9 @@ to stdout;"
 echo "${EVERYTHING}"
 }
 
-# Run schema extractions
-OUTFILE="${WORKDIR}/${LABEL1}.copy"  
-extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -q -d ${URI1}  > ${OUTFILE}
-retcode=$?
-if [ $retcode -ne 0 ]; then
-    echo "Could not extract schema data for label ${LABEL1} from database PGDATABASE=${URI1}"
-    exit 1
-fi
+function compare_data () {
 
-OUTFILE="${WORKDIR}/${LABEL2}.copy"
-extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -q -d ${URI2} > ${OUTFILE}
-if [ $retcode -ne 0 ]; then
-    echo "Could not extract schema data for label ${LABEL2} from database PGDATABASE=${URI2}"
-    exit 1
-fi
-
-# Generated data files
-echo "Extracted schema data files:"
-ls -l ${COPY1} ${COPY2}
-
-COMPARESCRIPT="
+    COMPARESCRIPT="
 drop table if exists data_raw;
 create table data_raw (
     label text,
@@ -703,19 +706,56 @@ select object_type, difference_type, difference_cause, importance, count(*) from
 select object_type, object_name, difference_type, difference_cause, importance from badexplanations_items order by object_type, object_name;
 
 "
-echo "${COMPARESCRIPT}" > ${WORKDIR}/load-comparison-data.sql
+    echo "${COMPARESCRIPT}" > ${WORKDIR}/load-comparison-data.sql
 
-${PSQL} -d ${URIW} -f ${WORKDIR}/load-comparison-data.sql > ${WORKDIR}/perform-comparison.log 2>&1 
-if [ $retcode -ne 0 ]; then
-    echo "Could not run comparison against database PGDATABASE=${URIW}"
-    echo "See comparison log: ${WORKDIR}/perform-comparison.log"
-    exit 2
-fi
+    ${PSQL} -d ${URIW} -f ${WORKDIR}/load-comparison-data.sql > ${WORKDIR}/perform-comparison.log 2>&1 
+    retcode=$?
+    if [ $retcode -ne 0 ]; then
+	echo "Could not run comparison against database PGDATABASE=${URIW}"
+	echo "See comparison log: ${WORKDIR}/perform-comparison.log"
+	exit 2
+    fi
 
-if [[ -s ${BADEXPLAIN} ]] ; then
-    baditemcount=`wc -l ${BADEXPLAIN}`
-    echo "Number of items inadequately explained: ${baditemcount}"
-    exit 3
-fi
+    if [[ -s ${BADEXPLAIN} ]] ; then
+	baditemcount=`wc -l ${BADEXPLAIN}`
+	echo "Number of items inadequately explained: ${baditemcount}"
+	exit 3
+    fi
 
-exit 0
+}
+
+# Run schema extractions
+OUTFILE="${WORKDIR}/${LABEL1}.copy"
+case $PGCMPACTION in
+    dump1|dump)
+	extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -q -d ${URI1}  > ${OUTFILE}
+	retcode=$?
+	if [ $retcode -ne 0 ]; then
+	    echo "Could not extract schema data for label ${LABEL1} from database PGDATABASE=${URI1}"
+	    exit 1
+	else
+	    echo "Extracted schema data for ${URI1}"
+	    ls -l ${COPY1}
+	fi
+	;;
+esac
+
+case $PGCMPACTION in
+    dump2|dump)
+	OUTFILE="${WORKDIR}/${LABEL2}.copy"
+	extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -q -d ${URI2} > ${OUTFILE}
+	if [ $retcode -ne 0 ]; then
+	    echo "Could not extract schema data for label ${LABEL2} from database PGDATABASE=${URI2}"
+	    exit 1
+	else
+	    echo "Extracted schema data for ${URI2}"
+	    ls -l ${COPY2}
+	fi
+	;;
+esac
+
+case $PGCMPACTION in
+    compare)
+	compare_data
+	;;
+esac

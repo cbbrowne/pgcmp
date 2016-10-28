@@ -9,4 +9,6 @@ createdb comparisondatabase
 psql -d test2 -f schema2.sql
 
 
-URI1=postgresql://postgres@localhost/test1 URI2=postgresql://postgres@localhost/test2 EXPLANATIONS=./explanations.txt ../pgcmp
+URI1=postgresql://postgres@localhost/test1 URI2=postgresql://postgres@localhost/test2 EXPLANATIONS=./explanations.txt ../pgcmp dump
+
+URI1=postgresql://postgres@localhost/test1 URI2=postgresql://postgres@localhost/test2 EXPLANATIONS=./explanations.txt ../pgcmp compare
