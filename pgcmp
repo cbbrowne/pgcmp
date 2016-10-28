@@ -21,6 +21,10 @@ if [ "x${URI1}" != "x" ]; then
 	echo "URI1 is set [${URI1}] as well as PORT1 [${PORT1}]"
 	ERR=true
     fi
+    if [ "x${USER1}" != "x" ]; then
+	echo "URI1 is set [${URI1}] as well as USER1 [${USER1}]"
+	ERR=true
+    fi
 fi
 if [ "x${URI2}" != "x" ]; then
     if [ "x${DB2}" != "x" ]; then
@@ -33,6 +37,10 @@ if [ "x${URI2}" != "x" ]; then
     fi
     if [ "x${PORT2}" != "x" ]; then
 	echo "URI2 is set [${URI2}] as well as PORT2 [${PORT2}]"
+	ERR=true
+    fi
+    if [ "x${USER2}" != "x" ]; then
+	echo "URI2 is set [${URI2}] as well as USER2 [${USER2}]"
 	ERR=true
     fi
 fi
@@ -49,7 +57,19 @@ if [ "x${URIW}" != "x" ]; then
 	echo "URIW is set [${URIW}] as well as PORTW [${PORTW}]"
 	ERR=true
     fi
+    if [ "x${USERW}" != "x" ]; then
+	echo "URIW is set [${URIW}] as well as USERW [${USERW}]"
+	ERR=true
+    fi
 fi
+
+case $ERR in
+     true)
+	  "Mismatch between database configuration - mix of user/host/port and URI configuration"
+	  exit 1
+	  ;;
+esac
+	  
 
 ### Capture default URI based on what's in the environment
 ###  Use PGHOST/PGUSER/PGPORT if assigned
