@@ -79,12 +79,13 @@
     ~INFORMATION_SCHEMA~ and ~pg_catalog~ in both databases that are
     to be compared.
 
-    This script requires /write/ access to the third database in which
+    This script requires /write/ access to a third database in which
     it constructs a series of tables used to perform the
     reconciliation.
 *** Parameters and Inputs
-     The comparison process connects to /three/ databases, and
-     requires a directory in which to access input
+
+     The comparison process defaults to connect to /three/ databases,
+     and requires a directory in which to access input
      (~explanations.txt~, which explains expected differences) as well
      as to capture output (/e.g./ - a full dump of the data analyzed,
      along with problems found in the reconciliation).  It therefore
@@ -93,46 +94,61 @@
      - Environment Variables :: Quite a large number, many of which
           offer reasonable defaults
      - Explanations File :: Optional extra file to explain expected
-          differences 
+          differences
+     - One parameter, the ACTION, which takes one of the following
+       values
+       - dump1 :: Dump first database's schema data, do no comparisons
+       - dump2 :: Dump second database's schema data, do no comparisons
+       - dump :: Dump both database's schema data, do no comparisons
+       - compare :: Load data for both databases, do comparison
+       - [nothing] :: Same as *compare*; load data for both databases, do comparison       
 **** Environment Variables
      - Common Database configuration
-	- PGBINDIR :: Location of Postgres binaries, used to find ~psql~
+       - PGBINDIR :: Location of Postgres binaries, used to find ~psql~
      - Database Connection Info
-	- First Database
-	  - DB1 :: Name of first database to be compared
-	  - HOST1 :: Host of first database cluster
-	  - USER1 :: Name of database user
-	  - PORT1 :: Port of database cluster
-	- Second Database
-	  - DB2 :: Name of second database to be compared
-	  - HOST2 :: Host of second database cluster
-	  - USER2 :: Name of database user
-	  - PORT2 :: Port of database cluster
-	- Comparison Database :: Used to perform comparison
-	  - DBW :: Name of comparison database 
-	  - HOSTW :: Host of comparison database cluster
-	  - USERW :: Name of database user
-	  - PORTW :: Port of database cluster
-      - Labels :: Used to indicate which data is from which database
-    - OMITSCHEMAS :: A list of schemas that are to be omitted from
-                     comparison for differences.  They will be
-                     /included/, but those comparisons will not be
-                     considered significant (/e.g./ - no ~exit 3~ at
-                     the end, they are left out of ~BADEXPLAIN~).
-                     Defaults to
-                     ~('pg_catalog','information_schema')~.
-	- LABEL1 :: Label for first database, defaults to
-                    HOST-PORT-DB, for instance, ~localhost-5432-devdb~
-	- LABEL2 :: Label for second database, defaults to
-                    HOST-PORT-DB, for instance,
-                    ~localhost-5432-proddb~
-      - File Locations
-	- WORKDIR :: Indicates a directory to use for the files, defaults to ~/tmp~
-	- EXPLANATIONS :: Indicates location of the input file
-                          containing explanations of variances,
-                          defaults to ~WORKDIR/explanations.txt~
-	  - Structure is a Postgres COPY of data for a table of
-            expected differences, defined as follows:
+       - First Database
+	 - DB1 :: Name of first database to be compared
+	 - HOST1 :: Host of first database cluster
+	 - USER1 :: Name of database user
+	 - PORT1 :: Port of database cluster
+	 - URI1 :: URI for first database cluster
+	   - If provided, the other values will be rejected
+	 - FILE1 :: File where first database schema data goes
+       - Second Database
+	 - DB2 :: Name of second database to be compared
+	 - HOST2 :: Host of second database cluster
+	 - USER2 :: Name of database user
+	 - PORT2 :: Port of database cluster
+	 - URI2 :: URI for second database cluster
+	   - If provided, the other values will be rejected
+	 - FILE2 :: File where second database schema data goes
+       - Comparison Database :: Used to perform comparison
+	 - DBW :: Name of comparison database 
+	 - HOSTW :: Host of comparison database cluster
+	 - USERW :: Name of database user
+	 - PORTW :: Port of database cluster
+	 - URIW :: URI for comparison database cluster
+	   - If provided, the other values will be rejected
+     - Labels :: Used to indicate which data is from which database
+     - OMITSCHEMAS :: A list of schemas that are to be omitted from
+                      comparison for differences.  They will be
+                      /included/, but those comparisons will not be
+                      considered significant (/e.g./ - no ~exit 3~ at
+                      the end, they are left out of ~BADEXPLAIN~).
+                      Defaults to
+                      ~('pg_catalog','information_schema')~.
+       - LABEL1 :: Label for first database, defaults to
+                   HOST-PORT-DB, for instance, ~localhost-5432-devdb~
+       - LABEL2 :: Label for second database, defaults to
+                   HOST-PORT-DB, for instance,
+                   ~localhost-5432-proddb~
+     - File Locations
+       - WORKDIR :: Indicates a directory to use for the files used/generated in the process, defaults to ~/tmp~
+       - EXPLANATIONS :: Indicates location of the input file
+                         containing explanations of variances,
+                         defaults to ~WORKDIR/explanations.txt~
+	 - Structure is a Postgres COPY of data for a table of
+           expected differences, defined as follows:
 #+BEGIN_EXAMPLE
 create table expected_differences (
     object_type text,

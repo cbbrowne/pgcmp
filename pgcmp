@@ -1,29 +1,84 @@
 #!/bin/bash
+PGCMPACTION=$1
 
 # Optional configuration:
 PGBINDIR=${PGBINDIR:-${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-9.1/bin"}}
 WORKDIR=${WORKDIR:-"/tmp"}
 PSQL="${PGBINDIR}/psql --pset pager=off "
 
+ERR=false
+# See if both URI1 and DB1/HOST1/PORT1 are set
+if [ "x${URI1}" != "x" ]; then
+    if [ "x${DB1}" != "x" ]; then
+	echo "URI1 is set [${URI1}] as well as DB1 [${DB1}]"
+	ERR=true
+    fi
+    if [ "x${HOST1}" != "x" ]; then
+	echo "URI1 is set [${URI1}] as well as HOST1 [${HOST1}]"
+	ERR=true
+    fi
+    if [ "x${PORT1}" != "x" ]; then
+	echo "URI1 is set [${URI1}] as well as PORT1 [${PORT1}]"
+	ERR=true
+    fi
+fi
+if [ "x${URI2}" != "x" ]; then
+    if [ "x${DB2}" != "x" ]; then
+	echo "URI2 is set [${URI2}] as well as DB2 [${DB2}]"
+	ERR=true
+    fi
+    if [ "x${HOST2}" != "x" ]; then
+	echo "URI2 is set [${URI2}] as well as HOST2 [${HOST2}]"
+	ERR=true
+    fi
+    if [ "x${PORT2}" != "x" ]; then
+	echo "URI2 is set [${URI2}] as well as PORT2 [${PORT2}]"
+	ERR=true
+    fi
+fi
+if [ "x${URIW}" != "x" ]; then
+    if [ "x${DBW}" != "x" ]; then
+	echo "URIW is set [${URIW}] as well as DBW [${DBW}]"
+	ERR=true
+    fi
+    if [ "x${HOSTW}" != "x" ]; then
+	echo "URIW is set [${URIW}] as well as HOSTW [${HOSTW}]"
+	ERR=true
+    fi
+    if [ "x${PORTW}" != "x" ]; then
+	echo "URIW is set [${URIW}] as well as PORTW [${PORTW}]"
+	ERR=true
+    fi
+fi
+
+### Capture default URI based on what's in the environment
+###  Use PGHOST/PGUSER/PGPORT if assigned
+
 DB1=${DB1:-"slonyregress1"}
 HOST1=${HOST1:-"localhost"}
 USER1=${USER1:-${PGUSER:-"postgres"}}
 PORT1=${PORT1:-${PGPORT:-"5432"}}
+URIC="postgresql://${USER1}@${HOST1}:${PORT1}/${DB1}"
+URI1=${URI1:-${URIC}}
 
 DB2=${DB2:-"slonyregress2"}
 HOST2=${HOST2:-"localhost"}
 USER2=${USER2:-${PGUSER:-"postgres"}}
 PORT2=${PORT2:-${PGPORT:-"5432"}}
+URIC="postgresql://${USER2}@${HOST2}:${PORT2}/${DB2}"
+URI2=${URI2:-${URIC}}
 
 DBW=${DBW:-"comparisondatabase"}
 HOSTW=${HOSTW:-"localhost"}
 USERW=${USERW:-${PGUSER:-"postgres"}}
 PORTW=${PORTW:-${PGPORT:-"5432"}}
+URIC="postgresql://${USERW}@${HOSTW}:${PORTW}/${DBW}"
+URIW=${URIW:-${URIC}}
 
 OMITSCHEMAS=${OMITSCHEMAS:-"('pg_catalog','information_schema')"}
 
-LABEL1=${LABEL1:-"${HOST1}-${PORT1}-${DB1}"}
-LABEL2=${LABEL2:-"${HOST2}-${PORT2}-${DB2}"}
+LABEL1=${LABEL1:-`echo "${URI1}" | sed 's/postgresql\:\/\///g' | sed 's/\//\:/g'`}
+LABEL2=${LABEL2:-`echo "${URI2}" | sed 's/postgresql\:\/\///g' | sed 's/\//\:/g'`}
 
 EXPLANATIONS=${EXPLANATIONS:-"${WORKDIR}/explanations.txt"}
 FULLOUTPUT=${FULLOUTPUT:-"${WORKDIR}/fulloutput.txt"}
@@ -33,15 +88,15 @@ COPY1="${WORKDIR}/${LABEL1}.copy"
 COPY2="${WORKDIR}/${LABEL2}.copy"
 
 echo "Generating schema from databases:
-   DB1- ${LABEL1} -d ${DB1} -h ${HOST1} -p ${PORT1}
-   DB2- ${LABEL2} -d ${DB2} -h ${HOST2} -p ${PORT2}
+   URI1 - ${URI1}
+   URI2 - ${URI2}
 
 Output to:
   ${COPY1}
   ${COPY2}
 
 Work Database:
-   DBW- ${LABELW} -d ${DBW} -h ${HOSTW} -p ${PORTW}
+   URIW - ${URIW}
 
 Schemas to be omitted from comparison:
    ${OMITSCHEMAS}
@@ -288,30 +343,23 @@ echo "${EVERYTHING}"
 
 # Run schema extractions
 OUTFILE="${WORKDIR}/${LABEL1}.copy"  
-extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -q -d ${DB1} -h ${HOST1} -p ${PORT1} -U ${USER1}  > ${OUTFILE}
+extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -q -d ${URI1}  > ${OUTFILE}
 retcode=$?
 if [ $retcode -ne 0 ]; then
-    echo "Could not extract schema data for label ${LABEL1} from database PGDATA=${DB1} PGHOST=${HOST1} PGPORT=${PORT1} PGUSER=${USER1}"
+    echo "Could not extract schema data for label ${LABEL1} from database PGDATABASE=${URI1}"
     exit 1
 fi
 
 OUTFILE="${WORKDIR}/${LABEL2}.copy"
-extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -q -d ${DB2} -h ${HOST2} -p ${PORT2} -U ${USER2}   > ${OUTFILE}
+extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -q -d ${URI2} > ${OUTFILE}
 if [ $retcode -ne 0 ]; then
-    echo "Could not extract schema data for label ${LABEL2} from database PGDATA=${DB2} PGHOST=${HOST2} PGPORT=${PORT2} PGUSER=${USER2}"
+    echo "Could not extract schema data for label ${LABEL2} from database PGDATABASE=${URI2}"
     exit 1
 fi
 
 # Generated data files
 echo "Extracted schema data files:"
 ls -l ${COPY1} ${COPY2}
-
-# Generate comparison database
-${PSQL} -d postgres -h ${HOSTW} -p ${PORTW} -U ${USERW} -c "create database \"${DBW}\""
-if [ $retcode -ne 0 ]; then
-    echo "Could not establish comparison database from database PGDATA=${DBW} PGHOST=${HOSTW} PGPORT=${PORTW} PGUSER=${USERW}"
-    exit 1
-fi
 
 COMPARESCRIPT="
 drop table if exists data_raw;
@@ -637,9 +685,9 @@ select object_type, object_name, difference_type, difference_cause, importance f
 "
 echo "${COMPARESCRIPT}" > ${WORKDIR}/load-comparison-data.sql
 
-${PSQL} -d ${DBW} -h ${HOSTW} -p ${PORTW} -U ${USERW} -f ${WORKDIR}/load-comparison-data.sql > ${WORKDIR}/perform-comparison.log 2>&1 
+${PSQL} -d ${URIW} -f ${WORKDIR}/load-comparison-data.sql > ${WORKDIR}/perform-comparison.log 2>&1 
 if [ $retcode -ne 0 ]; then
-    echo "Could not run comparison against database PGDATA=${DBW} PGHOST=${HOSTW} PGPORT=${PORTW} PGUSER=${USERW}"
+    echo "Could not run comparison against database PGDATABASE=${URIW}"
     echo "See comparison log: ${WORKDIR}/perform-comparison.log"
     exit 2
 fi
