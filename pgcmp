@@ -1,391 +1,49 @@
 #!/bin/bash
-PGCMPACTION=$1
 
 # Optional configuration:
-PGBINDIR=${PGBINDIR:-${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-9.1/bin"}}
-WORKDIR=${WORKDIR:-"/tmp"}
+PGBINDIR=${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-9.1/bin"}
+PGCWORKDIR=${PGCWORKDIR:-"/tmp"}
 PSQL="${PGBINDIR}/psql --pset pager=off "
-
-ERR=false
-# See if both URI1 and DB1/HOST1/PORT1 are set
-if [ "x${URI1}" != "x" ]; then
-    if [ "x${DB1}" != "x" ]; then
-	echo "URI1 is set [${URI1}] as well as DB1 [${DB1}]"
-	ERR=true
-    fi
-    if [ "x${HOST1}" != "x" ]; then
-	echo "URI1 is set [${URI1}] as well as HOST1 [${HOST1}]"
-	ERR=true
-    fi
-    if [ "x${PORT1}" != "x" ]; then
-	echo "URI1 is set [${URI1}] as well as PORT1 [${PORT1}]"
-	ERR=true
-    fi
-    if [ "x${USER1}" != "x" ]; then
-	echo "URI1 is set [${URI1}] as well as USER1 [${USER1}]"
-	ERR=true
-    fi
-fi
-if [ "x${URI2}" != "x" ]; then
-    if [ "x${DB2}" != "x" ]; then
-	echo "URI2 is set [${URI2}] as well as DB2 [${DB2}]"
-	ERR=true
-    fi
-    if [ "x${HOST2}" != "x" ]; then
-	echo "URI2 is set [${URI2}] as well as HOST2 [${HOST2}]"
-	ERR=true
-    fi
-    if [ "x${PORT2}" != "x" ]; then
-	echo "URI2 is set [${URI2}] as well as PORT2 [${PORT2}]"
-	ERR=true
-    fi
-    if [ "x${USER2}" != "x" ]; then
-	echo "URI2 is set [${URI2}] as well as USER2 [${USER2}]"
-	ERR=true
-    fi
-fi
-if [ "x${URIW}" != "x" ]; then
-    if [ "x${DBW}" != "x" ]; then
-	echo "URIW is set [${URIW}] as well as DBW [${DBW}]"
-	ERR=true
-    fi
-    if [ "x${HOSTW}" != "x" ]; then
-	echo "URIW is set [${URIW}] as well as HOSTW [${HOSTW}]"
-	ERR=true
-    fi
-    if [ "x${PORTW}" != "x" ]; then
-	echo "URIW is set [${URIW}] as well as PORTW [${PORTW}]"
-	ERR=true
-    fi
-    if [ "x${USERW}" != "x" ]; then
-	echo "URIW is set [${URIW}] as well as USERW [${USERW}]"
-	ERR=true
-    fi
-fi
-
-case $ERR in
-     true)
-	  "Mismatch between database configuration - mix of user/host/port and URI configuration"
-	  exit 1
-	  ;;
-esac
-
-	  
 
 ### Capture default URI based on what's in the environment
 ###  Use PGHOST/PGUSER/PGPORT if assigned
 
-DB1=${DB1:-"slonyregress1"}
-HOST1=${HOST1:-"localhost"}
-USER1=${USER1:-${PGUSER:-"postgres"}}
-PORT1=${PORT1:-${PGPORT:-"5432"}}
-URIC="postgresql://${USER1}@${HOST1}:${PORT1}/${DB1}"
-URI1=${URI1:-${URIC}}
+PGDB=${PGDB:-"comparisondatabase"}
+PGHOST=${PGHOST:-"localhost"}
+PGUSER=${PGUSER:-"postgres"}
+PGPORT=${PGPORT:-"5432"}
+URIC="postgresql://${PGUSER}@${PGHOST}:${PGPORT}/${PGDB}"
+PGURI=${PGURI:-${URIC}}
 
-DB2=${DB2:-"slonyregress2"}
-HOST2=${HOST2:-"localhost"}
-USER2=${USER2:-${PGUSER:-"postgres"}}
-PORT2=${PORT2:-${PGPORT:-"5432"}}
-URIC="postgresql://${USER2}@${HOST2}:${PORT2}/${DB2}"
-URI2=${URI2:-${URIC}}
+PGCLABEL1=${PGCLABEL1:-"db1"}
+PGCLABEL2=${PGCLABEL2:-"db2"}
 
-DBW=${DBW:-"comparisondatabase"}
-HOSTW=${HOSTW:-"localhost"}
-USERW=${USERW:-${PGUSER:-"postgres"}}
-PORTW=${PORTW:-${PGPORT:-"5432"}}
-URIC="postgresql://${USERW}@${HOSTW}:${PORTW}/${DBW}"
-URIW=${URIW:-${URIC}}
+PGCEXPLANATIONS=${PGCEXPLANATIONS:-"${PGCWORKDIR}/explanations.txt"}
+PGCFULLOUTPUT=${PGCFULLOUTPUT:-"${PGCWORKDIR}/fulloutput.txt"}
+PGCUNEXPLAINED=${PGCUNEXPLAINED:-"${PGCWORKDIR}/unexplained.txt"}
+PGCBADEXPLAIN=${PGCBADEXPLAIN:-"${PGCWORKDIR}/badexplanations.txt"}
+PGCMPINPUT1=${PGCMPINPUT1:-${PGCWORKDIR}/${PGCLABEL1}.copy}
+PGCMPINPUT2=${PGCMPINPUT2:-${PGCWORKDIR}/${PGCLABEL2}.copy}
 
-OMITSCHEMAS=${OMITSCHEMAS:-"('pg_catalog','information_schema')"}
+echo "pgcmp: Comparing schema data
 
-LABEL1=${LABEL1:-`echo "${URI1}" | sed 's/postgresql\:\/\///g' | sed 's/\//\:/g'`}
-LABEL2=${LABEL2:-`echo "${URI2}" | sed 's/postgresql\:\/\///g' | sed 's/\//\:/g'`}
+ Data files:
+   PGCMPINPUT1=[${PGCMPINPUT1}]
+   PGCMPINPUT2=[${PGCMPINPUT2}]
 
-case $PGCMPACTION in
-    dump1)
-	echo "Action: dump1 - dumping data for ${URI1}"
-	;;
-    dump2)
-	echo "Action: dump2 - dumping data for ${URI2}"
-	;;
-    dump)
-	echo "Action: dump - dumping data for both ${URI1} and ${URI2}"
-	;;
-    compare)
-	echo "Action: compare - load data for both databases, perform comparison"
-	;;
-    *)
-	echo "Action: [${PGCMPACTION}] - not in dump1, dump2, dump, compare"
-	exit 1
-	;;
-esac
-	
+ Work Database:
+   PGURI - ${PGURI}
 
-EXPLANATIONS=${EXPLANATIONS:-"${WORKDIR}/explanations.txt"}
-FULLOUTPUT=${FULLOUTPUT:-"${WORKDIR}/fulloutput.txt"}
-UNEXPLAINED=${UNEXPLAINED:-"${WORKDIR}/unexplained.txt"}
-BADEXPLAIN=${BADEXPLAIN:-"${WORKDIR}/badexplanations.txt"}
-COPY1="${WORKDIR}/${LABEL1}.copy"
-COPY2="${WORKDIR}/${LABEL2}.copy"
-
-echo "Generating schema from databases:
-   URI1 - ${URI1}
-   URI2 - ${URI2}
-
-Data Files containing schema data:
-  ${COPY1}
-  ${COPY2}
-
-Work Database:
-   URIW - ${URIW}
-
-Schemas to be omitted from comparison:
-   ${OMITSCHEMAS}
-
-Explanations Input list (EXPLANATIONS): [${EXPLANATIONS}]
-Full output: (FULLOUTPUT) [${FULLOUTPUT}]
-Unexplained items output: (UNEXPLAINED) [${UNEXPLAINED}]
-Unexplained items as explanation: (BADEXPLAIN) [${BADEXPLAIN}]
+Explanations Input list (PGCEXPLANATIONS): [${PGCEXPLANATIONS}]
+Full output: (PGCFULLOUTPUT) [${PGCFULLOUTPUT}]
+Unexplained items output: (PGCUNEXPLAINED) [${PGCUNEXPLAINED}]
+Unexplained items as explanation: (PGCBADEXPLAIN) [${PGCBADEXPLAIN}]
 "
-
-function extract_schema_data () {
-    local LABEL=$1
-    local WHEN=`date`
-    echo "-- extract_schema_data.sh {label=${LABEL}}"
-    echo "-- extracting schema information into file ${OUTFILE}"
-    echo "-- based on libpq parameters: 
---   PGHOST=${PGHOST}
---   PGDATABASE=${PGDATABASE}
---   PGPORT=${PGPORT}
---   PGUSER=${PGUSER}
---   as at ${WHEN}"
-
-# Pull data for major object types:
-
-# BLANK is just a place-holder to establish the names and data types for the elements in the giant UNION query
-    BLANK=" select 'header'::text as object_type, 'schema'::text as object_schema, 'name'::text as object_name, 'definition'::text as object_definition "
-
-# Roles
-    RQ=" select 'role', NULL::text, rolname, 'rolcreaterole:'|| (rolcreaterole::text) || ',rolcreatedb:' || (rolcreatedb::text) ||',rolcanlogin:'||(rolcanlogin::text)
-from pg_catalog.pg_roles"
-
-# Schemas
-# a) Existence
-    SCEQ="
-select 'schema', schema_name, schema_name, schema_owner from information_schema.schemata"
-
-# b) Permissions
-    SCP="
-select 'schema permissions', nspname, nspname, unnest(nspacl)::text from pg_catalog.pg_namespace"
-
-# Tables
-    TEQ="
-select case when table_type = 'BASE TABLE' then 'table'
-            when table_type = 'VIEW' then 'view'
-            else 'other relation' end,
-table_schema,
-table_schema || '.' || table_name, NULL::text
-from information_schema.tables"
-
-    TOWN="
-select case when c.relkind = 'r' then 'table owner'
-            when c.relkind = 'v' then 'view owner' end, 
-        n.nspname,
-        n.nspname || '.' || c.relname, r.rolname
-from pg_class c, pg_namespace n, pg_roles r
-where n.oid = c.relnamespace and r.oid = c.relowner
-and c.relkind in ('v', 'r')"
-
-    COLS="
-select 'column', table_schema, table_schema|| '.' || table_name || '.' || column_name,
-'type:' || data_type || 
-',maxlen:' || coalesce(character_maximum_length::text, coalesce(character_octet_length::text, coalesce(numeric_precision::text, 'n/a'))) ||
-',nullable:'||is_nullable || ',default:' ||  coalesce(column_default, 'NULL')
-from information_schema.columns"
-
-    TSTORAGE="
-select 'options', n.nspname,
-        n.nspname || '.' || c.relname, 
-        unnest(c.reloptions)
-from pg_class c, pg_namespace n
-where n.oid = c.relnamespace and c.reloptions is not null"
-
-    TPERM="
-select case when c.relkind = 'r' then 'table permissions'
-            when c.relkind = 'S' then 'sequence permissions'
-            when c.relkind = 'v' then 'view permissions' end,
-       n.nspname,
-       n.nspname || '.' || c.relname, unnest(c.relacl)::text
-from pg_class c, pg_namespace n, pg_roles r
-where n.oid = c.relnamespace and r.oid = c.relowner
-and c.relkind in ('v', 'r', 'S')"
-
-    TSEQ="
-select 'sequence', sequence_schema, sequence_schema || '.' || sequence_name, 
-    'start:' || start_value::text || ',min:' || minimum_value::text || ',max:' || maximum_value::text || ',increment:' || increment::text || ',cycles:' || cycle_option
-from information_schema.sequences"
-
-    VDEF="
-select 'view definition', table_schema, table_schema|| '.' || table_name, view_definition
-from information_schema.views"
-
-
-    FCODE="
-select 'function definition', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.routine_definition 
-from information_schema.routines r, pg_catalog.pg_proc p 
-where r.specific_name = p.proname || '_' || p.oid "
-
-    FPERM1="
-select 'function permissions', rp.specific_schema, p.oid::regprocedure::text || '-role:' || rp.grantee,
-'privilege_type:' || rp.privilege_type || ',is_grantable:' || rp.is_grantable
-from information_schema.routine_privileges rp, pg_proc p
-where rp.specific_name = p.proname || '_' || p.oid"
-
-    FOWNER="
-select 'function owner', n.nspname, p.oid::regprocedure::text, r.rolname
-from pg_catalog.pg_roles r, pg_catalog.pg_proc p, pg_catalog.pg_namespace n
-where r.oid = p.proowner and n.oid = p.pronamespace"
-
-    FLANGUAGE="
-select 'function language', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.external_language
-from information_schema.routines r, pg_catalog.pg_proc p
-where
-    r.specific_name = p.proname || '_' || p.oid "
-
-    FSECTYPE="
-select 'function security type', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.security_type
-from information_schema.routines r, pg_catalog.pg_proc p
-where 
-    r.specific_name = p.proname || '_' || p.oid"
-
-    FCONFIG="
-select 'function config', n.nspname, p.oid::regprocedure::text, p.proconfig::text
-from pg_catalog.pg_proc p, pg_catalog.pg_namespace n
-where n.oid = p.pronamespace"
-
-    TRIGGERS="
-select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_table || '.' || t.trigger_name ||'/'|| t.event_manipulation, 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
-from information_schema.triggers t"
-
-    CHECKCON="
-select 'check constraint', n.nspname, n.nspname || '.' || r.relname || ':' || c.conname, consrc
-from
-   pg_catalog.pg_class r, pg_catalog.pg_namespace n, pg_catalog.pg_constraint c
-where
-   r.oid = c.conrelid and n.oid = c.connamespace and c.consrc is not null"
-
-    INDEXES="
-select 'index', schemaname, schemaname || '.' || tablename || ':' || indexname, indexdef
-from pg_catalog.pg_indexes"
-
-    FOREIGNKEYS="
-select 'foreign key', constraint_schema, constraint_schema || '.' || c.relname || ':' || constraint_name,
-unique_constraint_schema || '.' || unique_constraint_name || ',match:' || match_option || ',update_rule:' || update_rule || ',delete_rule:' || delete_rule
-from pg_catalog.pg_class c, pg_catalog.pg_constraint pc, information_schema.referential_constraints rc, pg_catalog.pg_namespace n
-where
-   rc.constraint_schema = n.nspname and
-   rc.constraint_name = pc.conname and
-   pc.conrelid = c.oid and
-   c.relnamespace = n.oid"
-
-    TYPES="
-select 'data type', n.nspname, n.nspname || '.' || t.typname, 'length:'||t.typlen::text || ',byval:'||t.typbyval::text||',phystype:'||t.typtype||',category:'||t.typcategory||',ispreferred:'||t.typispreferred::text||',delimiter:'||t.typdelim||'input:'||t.typinput::text||'output:'||t.typoutput::text||'receive:'||t.typreceive::text||'send:'||t.typsend::text||'modin:'||t.typmodin::text||'modout:'||t.typmodout::text||'analyze:'||t.typanalyze::text||'align:'||t.typalign::text||'storage:'||t.typstorage::text||'notnull:'||t.typnotnull::text||'typmod:'||t.typtypmod::text||'ndims:'||t.typndims::text||'collation:'||t.typcollation::text
-from pg_catalog.pg_type t, pg_namespace n
-where t.typnamespace = n.oid"
-    
-    TYPEOWNERS="
-select 'data type owner', n.nspname, n.nspname || '.' || t.typname, u.usename
-from pg_catalog.pg_type t, pg_namespace n, pg_user u
-where 
-   t.typnamespace = n.oid and u.usesysid = t.typowner"
-
-    OPERATORS="
-select 'operator', n.nspname, n.nspname || '.' || t.oprname,
-'kind:'|| t.oprkind::text ||
-',canmerge:'|| t.oprcanmerge::text ||
-',canhash:'|| t.oprcanhash::text ||
-',left:'|| t.oprleft::text ||
-',right:'|| t.oprright::text ||
-',result:'|| t.oprresult::text ||
-',com:'|| t.oprcom::text ||
-',negate:'|| t.oprnegate::text ||
-',code:'|| t.oprcode::text ||
-',rest:'|| t.oprrest::text ||
-',join:'|| t.oprjoin::text
-from pg_catalog.pg_operator t, pg_catalog.pg_namespace n
-where 
-t.oprnamespace = n.oid"
-    
-    OPOWNERS="
-select 'operator owner', n.nspname, n.nspname || '.' || o.oprname, u.usename
-from pg_catalog.pg_operator o, pg_namespace n, pg_user u
-where 
-   o.oprnamespace = n.oid and u.usesysid = o.oprowner"
-
-    EVERYTHING="
-copy ( with pgd_all_data (object_type, object_schema, object_name, object_definition)
-      as (
-${BLANK}
-UNION ALL
-${RQ} 
-UNION ALL
-${SCEQ}
-UNION ALL
-${SCP}
-UNION ALL
-${TEQ}
-UNION ALL
-${TOWN}
-UNION ALL
-${TSTORAGE}
-UNION ALL
-${TPERM}
-UNION ALL
-${COLS}
-UNION ALL
-${TSEQ}
-UNION ALL
-${VDEF}
-UNION ALL
-${FCODE}
-UNION ALL
-${FPERM1}
-UNION ALL
-${FOWNER}
-UNION ALL
-${FLANGUAGE}
-UNION ALL
-${FSECTYPE}
-UNION ALL
-${FCONFIG}
-UNION ALL
-${TRIGGERS}
-UNION ALL
-${CHECKCON}
-UNION ALL
-${INDEXES}
-UNION ALL
-${FOREIGNKEYS}
-UNION ALL
-${TYPES}
-UNION ALL
-${TYPEOWNERS}
-UNION ALL
-${OPERATORS}
-UNION ALL
-${OPOWNERS} )
-select '${LABEL}', object_schema, object_type, object_name, object_definition from pgd_all_data
-   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ${OMITSCHEMAS} or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
-)
-to stdout;"
-
-echo "${EVERYTHING}"
-}
 
 function compare_data () {
 
     COMPARESCRIPT="
-drop table if exists data_raw;
+drop table if exists data_raw cascade;
 create table data_raw (
     label text,
     id serial,
@@ -405,12 +63,12 @@ comment on column data_raw.object_definition is 'definition of the object';
 create index db1_tnd on data_raw(object_type, object_name);
 truncate data_raw;
 
-\\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${COPY1}';
-\\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${COPY2}';
+\\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${PGCMPINPUT1}';
+\\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${PGCMPINPUT2}';
 
 update data_raw set object_definition = '' where object_definition is null;
 
-drop table if exists raw_differences;
+drop table if exists raw_differences cascade;
 create table raw_differences (
   object_schema text,
   object_name text,
@@ -445,8 +103,8 @@ select r1.label, r1.id, r1.object_type, r1.object_schema, r1.object_name, r1.obj
        case when r1.object_definition = r2.object_definition then 'match'
             else 'mismatch' end
 from data_raw r1, data_raw r2
-where r1.label = '${LABEL1}' and
-      r2.label = '${LABEL2}' and
+where r1.label = '${PGCLABEL1}' and
+      r2.label = '${PGCLABEL2}' and
       r1.object_type = r2.object_type and
       r1.object_name = r2.object_name;
 
@@ -461,7 +119,7 @@ insert into raw_differences (label1, id1, object_type, object_schema, object_nam
 select r1.label, r1.id, r1.object_type, r1.object_schema, r1.object_name, r1.object_definition, 'missing in 2nd DB'
 from data_raw r1
 where 
-     r1.label = '${LABEL1}' and
+     r1.label = '${PGCLABEL1}' and
      not exists (select 1 from data_raw r2 where
                  r1.object_type = r2.object_type and
                  r1.object_name = r2.object_name and r2.label <> r1.label)
@@ -469,7 +127,7 @@ union all
 select r1.label, r1.id, r1.object_type, r1.object_schema, r1.object_name, r1.object_definition, 'missing in 1st DB'
 from data_raw r1
 where 
-     r1.label = '${LABEL2}' and
+     r1.label = '${PGCLABEL2}' and
      not exists (select 1 from data_raw r2 where
                  r1.object_type = r2.object_type and
                  r1.object_name = r2.object_name and r2.label <> r1.label);
@@ -548,7 +206,7 @@ update raw_differences rd
                        rdt.object_type = 'functiondefinition' and rdt.object_schema = rd.object_schema and
                        (rd.object_name = rdt.object_name or rd.object_name like (rdt.object_name || '.%')));
 
-drop table if exists expected_differences;
+drop table if exists expected_differences cascade;
 create table expected_differences (
     object_type text,
     object_schema text,
@@ -559,9 +217,9 @@ create table expected_differences (
     primary key(object_type, object_name, difference_type, difference_cause)
 );
 
-\\copy expected_differences from '${EXPLANATIONS}';
+\\copy expected_differences from '${PGCEXPLANATIONS}';
 
-drop table if exists object_types;
+drop table if exists object_types cascade;
 create table object_types (
    object_type text primary key,
    description text
@@ -569,6 +227,7 @@ create table object_types (
 
 insert into object_types (object_type, description)
 values 
+('header', 'placeholder - ignore'),
 ('index', 'index on table'),
 ('check constraint', 'CHECK constraint on table'),
 ('foreign key', 'foreign key constraint'),
@@ -682,8 +341,8 @@ where r.difference_type not in ('match') and
 not exists 
 (select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
 
-\\copy fulloutput to '${FULLOUTPUT}';
-\\copy unexplained_items to '${UNEXPLAINED}';
+\\copy fulloutput to '${PGCFULLOUTPUT}';
+\\copy unexplained_items to '${PGCUNEXPLAINED}';
 
 drop table if exists badexplanations_items;
 create table badexplanations_items as
@@ -700,62 +359,28 @@ from expected_differences d
 \echo Results Summary
 select object_type, difference_type, difference_cause, importance, count(*) from fulloutput group by 2, 1, 3, 4 order by 4, 2, 1, 3;
 
-\\copy badexplanations_items to '${BADEXPLAIN}';
+\\copy badexplanations_items to '${PGCBADEXPLAIN}';
 
 \echo Inadequately Explained Items
 select object_type, object_name, difference_type, difference_cause, importance from badexplanations_items order by object_type, object_name;
 
 "
-    echo "${COMPARESCRIPT}" > ${WORKDIR}/load-comparison-data.sql
+    echo "${COMPARESCRIPT}" > ${PGCWORKDIR}/load-comparison-data.sql
 
-    ${PSQL} -d ${URIW} -f ${WORKDIR}/load-comparison-data.sql > ${WORKDIR}/perform-comparison.log 2>&1 
+    ${PSQL} -d ${PGURI} -f ${PGCWORKDIR}/load-comparison-data.sql > ${PGCWORKDIR}/perform-comparison.log 2>&1 
     retcode=$?
     if [ $retcode -ne 0 ]; then
-	echo "Could not run comparison against database PGDATABASE=${URIW}"
-	echo "See comparison log: ${WORKDIR}/perform-comparison.log"
+	echo "Could not run comparison against database PGDATABASE=${PGURI}"
+	echo "See comparison log: ${PGCWORKDIR}/perform-comparison.log"
 	exit 2
     fi
 
-    if [[ -s ${BADEXPLAIN} ]] ; then
-	baditemcount=`wc -l ${BADEXPLAIN}`
+    if [[ -s ${PGCBADEXPLAIN} ]] ; then
+	baditemcount=`wc -l ${PGCBADEXPLAIN}`
 	echo "Number of items inadequately explained: ${baditemcount}"
 	exit 3
     fi
 
 }
 
-# Run schema extractions
-OUTFILE="${WORKDIR}/${LABEL1}.copy"
-case $PGCMPACTION in
-    dump1|dump)
-	extract_schema_data "${LABEL1}" | ${PGBINDIR}/psql -q -d ${URI1}  > ${OUTFILE}
-	retcode=$?
-	if [ $retcode -ne 0 ]; then
-	    echo "Could not extract schema data for label ${LABEL1} from database PGDATABASE=${URI1}"
-	    exit 1
-	else
-	    echo "Extracted schema data for ${URI1}"
-	    ls -l ${COPY1}
-	fi
-	;;
-esac
-
-case $PGCMPACTION in
-    dump2|dump)
-	OUTFILE="${WORKDIR}/${LABEL2}.copy"
-	extract_schema_data "${LABEL2}" | ${PGBINDIR}/psql -q -d ${URI2} > ${OUTFILE}
-	if [ $retcode -ne 0 ]; then
-	    echo "Could not extract schema data for label ${LABEL2} from database PGDATABASE=${URI2}"
-	    exit 1
-	else
-	    echo "Extracted schema data for ${URI2}"
-	    ls -l ${COPY2}
-	fi
-	;;
-esac
-
-case $PGCMPACTION in
-    compare)
-	compare_data
-	;;
-esac
+compare_data

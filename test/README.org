@@ -13,3 +13,7 @@
   - test1 :: contains ~schema1~
   - test2 :: contains ~schema1+2~
   - comparisondatabase :: used to contain the comparison
+
+  There is an explanation file that accounts for some of the
+  differences, but it is to be expected that there will be 6
+  differences that remain unexplained at the end.

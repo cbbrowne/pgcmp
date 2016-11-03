@@ -26,6 +26,7 @@ differences, should they differ.
 rm -rf %{buildroot}/usr/bin/pgcmp
 mkdir -p %{buildroot}/usr/bin
 install -D pgcmp %{buildroot}/usr/bin/pgcmp
+install -D pgcmp-dump %{buildroot}/usr/bin/pgcmp-dump
 
 %clean
 rm -rf %{buildroot}
@@ -37,5 +38,7 @@ rm -rf %{buildroot}
 %doc README.txt
 
 %changelog
+* Thu Nov 3 2016 Christopher B Browne <cbbrowne@afilias.info>
+- Factored out dump code into separate pgcmp-dump
 * Tue Aug 7 2012 Christopher B Browne <cbbrowne@afilias.info>
 - Initial packaging
