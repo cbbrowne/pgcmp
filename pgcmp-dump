@@ -251,7 +251,7 @@ ${OPERATORS}
 UNION ALL
 ${OPOWNERS} )
 select '${PGCLABEL}', object_schema, object_type, object_name, object_definition from pgd_all_data
-   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ${PGCOMITSCHEMAS} or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
+   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ('${PGCOMITSCHEMAS}') or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
 )
 to stdout;"
 
