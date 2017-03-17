@@ -51,8 +51,9 @@ from pg_catalog.pg_roles"
 select 'schema', schema_name, schema_name, schema_owner from information_schema.schemata"
 
 # b) Permissions
-    SCP="
-select 'schema permissions', nspname, nspname, unnest(nspacl)::text from pg_catalog.pg_namespace"
+    SCP="select object_type::text, object_schema::text, object_name::text, object_value::text from (with sp as (select 'schema permissions' as object_type, nspname as object_schema, nspname as object_name, unnest(nspacl)::text as acl_breakdown, position('=' in unnest(nspacl)::text)::integer as acl_separator_pos from pg_catalog.pg_namespace)
+select object_type, object_schema, object_name || ':' || coalesce(substr(acl_breakdown, 0, acl_separator_pos), '')::text as object_name, coalesce(substr(acl_breakdown, acl_separator_pos), '')::text as object_value from sp) as sp "
+    
 
 # Tables
     TEQ="
@@ -95,6 +96,26 @@ select case when c.relkind = 'r' then 'table permissions'
 from pg_class c, pg_namespace n, pg_roles r
 where n.oid = c.relnamespace and r.oid = c.relowner
 and c.relkind in ('v', 'r', 'S')"
+
+    TPERM="
+select object_type::text, object_schema::text, object_name::text, object_value::text
+from
+(with tp as
+  (select 
+       case when c.relkind = 'r' then 'table permissions'
+            when c.relkind = 'S' then 'sequence permissions'
+            when c.relkind = 'v' then 'view permissions' end as object_type,
+       n.nspname::text as object_schema,
+       (n.nspname || '.' || c.relname)::text as object_name,
+       unnest(c.relacl)::text as perm,
+       position('=' in unnest(c.relacl)::text)::integer as perm_separator
+   from pg_class c, pg_namespace n, pg_roles r
+   where n.oid = c.relnamespace and r.oid = c.relowner
+     and c.relkind in ('v', 'r', 'S'))
+  select object_type, object_schema, 
+         object_name || ':' || coalesce(substr(perm, 0, perm_separator), '')::text as object_name, 
+         coalesce(substr(perm, perm_separator), '')::text as object_value from tp)
+as tperms"
 
     TSEQ="
 select 'sequence', sequence_schema, sequence_schema || '.' || sequence_name, 
@@ -251,7 +272,7 @@ ${OPERATORS}
 UNION ALL
 ${OPOWNERS} )
 select '${PGCLABEL}', object_schema, object_type, object_name, object_definition from pgd_all_data
-   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ('${PGCOMITSCHEMAS}') or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
+   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ${PGCOMITSCHEMAS} or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
 )
 to stdout;"
 
