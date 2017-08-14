@@ -4,6 +4,7 @@
 PGBINDIR=${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-9.1/bin"}
 PGCWORKDIR=${PGCWORKDIR:-"/tmp"}
 PSQL="${PGBINDIR}/psql --pset pager=off "
+PGCOMITSCHEMAS=${PGCOMITSCHEMAS:-"('pg_catalog','information_schema')"}
 
 ### Capture default URI based on what's in the environment
 ###  Use PGHOST/PGUSER/PGPORT if assigned
@@ -38,6 +39,7 @@ Explanations Input list (PGCEXPLANATIONS): [${PGCEXPLANATIONS}]
 Full output: (PGCFULLOUTPUT) [${PGCFULLOUTPUT}]
 Unexplained items output: (PGCUNEXPLAINED) [${PGCUNEXPLAINED}]
 Unexplained items as explanation: (PGCBADEXPLAIN) [${PGCBADEXPLAIN}]
+Schemas to omit: (PGCOMITSCHEMAS) [${PGCOMITSCHEMAS}]
 "
 
 function compare_data () {
@@ -139,6 +141,9 @@ create index rd_name on raw_differences(object_name);
 create index rd_schema on raw_differences(object_schema);
 create index rd_label2 on raw_differences(label2);
 create index rd_id2 on raw_differences(id2);
+
+delete from raw_differences
+  where object_schema in ${PGCOMITSCHEMAS};
 
 update raw_differences 
   set importance = NULL
@@ -318,6 +323,11 @@ select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definit
 from raw_differences r where r.difference_type in ('mismatch') and 
 not exists 
 (select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
+
+--- 7.  Ignore differences arising from omitted schemas
+insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
+select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text, r.importance
+from raw_differences r where r.difference_type in ('mismatch', 'missing in 1st DB', 'missing in 2nd DB') and r.object_schema in ${PGCOMITSCHEMAS};
 
 drop table if exists unexplained_items;
 create table unexplained_items (
