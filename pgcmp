@@ -26,6 +26,8 @@ PGCBADEXPLAIN=${PGCBADEXPLAIN:-"${PGCWORKDIR}/badexplanations.txt"}
 PGCMPINPUT1=${PGCMPINPUT1:-${PGCWORKDIR}/${PGCLABEL1}.copy}
 PGCMPINPUT2=${PGCMPINPUT2:-${PGCWORKDIR}/${PGCLABEL2}.copy}
 
+touch $PGCEXPLANATIONS
+
 echo "pgcmp: Comparing schema data
 
  Data files:
@@ -394,3 +396,4 @@ select object_type, object_name, difference_type, difference_cause, importance f
 }
 
 compare_data
+echo "pgcmp complete - no differences found"
