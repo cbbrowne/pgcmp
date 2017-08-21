@@ -88,16 +88,6 @@ from pg_class c, pg_namespace n
 where n.oid = c.relnamespace and c.reloptions is not null"
 
     TPERM="
-select case when c.relkind = 'r' then 'table permissions'
-            when c.relkind = 'S' then 'sequence permissions'
-            when c.relkind = 'v' then 'view permissions' end,
-       n.nspname,
-       n.nspname || '.' || c.relname, unnest(c.relacl)::text
-from pg_class c, pg_namespace n, pg_roles r
-where n.oid = c.relnamespace and r.oid = c.relowner
-and c.relkind in ('v', 'r', 'S')"
-
-    TPERM="
 select object_type::text, object_schema::text, object_name::text, object_value::text
 from
 (with tp as
