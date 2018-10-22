@@ -104,9 +104,12 @@ activity.
               URIs.  If the individual parameters above are offered,
               they will be constructed into a URI; if ~PGURI~ is
               populated, it will be used instead.
- - PGCOMITSCHEMAS :: Indicates (as a SQL clause suitable for ~IN~),
-                     a set of schemas from ~pg_catalog.pg_namespace~
-                     that should be omitted from analysis.
+ - PGCOMITSCHEMAS :: Indicates (as a SQL clause suitable for ~IN~), a
+                     set of schema labels from
+                     ~pg_catalog.pg_namespace~ that should be omitted
+                     from analysis.  As identifiers, they may require
+                     doublequotes consistent with the function
+                     ~pg_catalog.quote_ident()~
  - PGCLABEL :: Indicates an identifer for the database's data to
                report in analysis output
  - PGCMPOUTPUT :: The name of the file in which to store output, that

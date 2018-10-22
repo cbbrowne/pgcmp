@@ -145,7 +145,8 @@ create index rd_label2 on raw_differences(label2);
 create index rd_id2 on raw_differences(id2);
 
 delete from raw_differences
-  where object_schema in ${PGCOMITSCHEMAS};
+  where object_schema in ${PGCOMITSCHEMAS}
+     or quote_ident(object_schema) in ${PGCOMITSCHEMAS};
 
 update raw_differences 
   set importance = NULL

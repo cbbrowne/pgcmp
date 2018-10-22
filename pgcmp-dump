@@ -51,7 +51,7 @@ from pg_catalog.pg_roles"
 select 'schema', schema_name, schema_name, schema_owner from information_schema.schemata"
 
 # b) Permissions
-    SCP="select object_type::text, object_schema::text, object_name::text, object_value::text from (with sp as (select 'schema permissions' as object_type, nspname as object_schema, nspname as object_name, unnest(nspacl)::text as acl_breakdown, position('=' in unnest(nspacl)::text)::integer as acl_separator_pos from pg_catalog.pg_namespace)
+    SCP="select object_type::text, object_schema::text, object_name::text, object_value::text from (with sp as (select 'schema permissions' as object_type, quote_ident(nspname) as object_schema, nspname as object_name, unnest(nspacl)::text as acl_breakdown, position('=' in unnest(nspacl)::text)::integer as acl_separator_pos from pg_catalog.pg_namespace)
 select object_type, object_schema, object_name || ':' || coalesce(substr(acl_breakdown, 0, acl_separator_pos), '')::text as object_name, coalesce(substr(acl_breakdown, acl_separator_pos), '')::text as object_value from sp) as sp "
     
 
@@ -60,29 +60,29 @@ select object_type, object_schema, object_name || ':' || coalesce(substr(acl_bre
 select case when table_type = 'BASE TABLE' then 'table'
             when table_type = 'VIEW' then 'view'
             else 'other relation' end,
-table_schema,
-table_schema || '.' || table_name, NULL::text
+quote_ident(table_schema),
+quote_ident(table_schema) || '.' || quote_ident(table_name), NULL::text
 from information_schema.tables"
 
     TOWN="
 select case when c.relkind = 'r' then 'table owner'
             when c.relkind = 'v' then 'view owner' end, 
-        n.nspname,
-        n.nspname || '.' || c.relname, r.rolname
+        quote_ident(n.nspname),
+        quote_ident(n.nspname) || '.' || quote_ident(c.relname), r.rolname
 from pg_class c, pg_namespace n, pg_roles r
 where n.oid = c.relnamespace and r.oid = c.relowner
 and c.relkind in ('v', 'r')"
 
     COLS="
-select 'column', table_schema, table_schema|| '.' || table_name || '.' || column_name,
+select 'column', quote_ident(table_schema), quote_ident(table_schema)|| '.' || quote_ident(table_name) || '.' || quote_ident(column_name),
 'type:' || data_type || 
 ',maxlen:' || coalesce(character_maximum_length::text, coalesce(character_octet_length::text, coalesce(numeric_precision::text, 'n/a'))) ||
 ',nullable:'||is_nullable || ',default:' ||  coalesce(column_default, 'NULL')
 from information_schema.columns"
 
     TSTORAGE="
-select 'options', n.nspname,
-        n.nspname || '.' || c.relname, 
+select 'options', quote_ident(n.nspname),
+        quote_ident(n.nspname) || '.' || quote_ident(c.relname), 
         unnest(c.reloptions)
 from pg_class c, pg_namespace n
 where n.oid = c.relnamespace and c.reloptions is not null"
@@ -95,52 +95,52 @@ from
        case when c.relkind = 'r' then 'table permissions'
             when c.relkind = 'S' then 'sequence permissions'
             when c.relkind = 'v' then 'view permissions' end as object_type,
-       n.nspname::text as object_schema,
-       (n.nspname || '.' || c.relname)::text as object_name,
+       quote_ident(n.nspname::text) as object_schema,
+       quote_ident(n.nspname) || '.' || quote_ident(c.relname)::text as object_name,
        unnest(c.relacl)::text as perm,
        position('=' in unnest(c.relacl)::text)::integer as perm_separator
    from pg_class c, pg_namespace n, pg_roles r
    where n.oid = c.relnamespace and r.oid = c.relowner
      and c.relkind in ('v', 'r', 'S'))
   select object_type, object_schema, 
-         object_name || ':' || coalesce(substr(perm, 0, perm_separator), '')::text as object_name, 
+         quote_ident(object_name || ':' || coalesce(substr(perm, 0, perm_separator), '')::text) as object_name, 
          coalesce(substr(perm, perm_separator), '')::text as object_value from tp)
 as tperms"
 
     TSEQ="
-select 'sequence', sequence_schema, sequence_schema || '.' || sequence_name, 
+select 'sequence', quote_ident(sequence_schema), quote_ident(sequence_schema) || '.' || quote_ident(sequence_name), 
     'start:' || start_value::text || ',min:' || minimum_value::text || ',max:' || maximum_value::text || ',increment:' || increment::text || ',cycles:' || cycle_option
 from information_schema.sequences"
 
     VDEF="
-select 'view definition', table_schema, table_schema|| '.' || table_name, view_definition
+select 'view definition', quote_ident(table_schema), quote_ident(table_schema)|| '.' || quote_ident(table_name), view_definition
 from information_schema.views"
 
 
     FCODE="
-select 'function definition', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.routine_definition 
+select 'function definition', quote_ident(r.specific_schema), quote_ident(r.specific_schema) || '.' || p.oid::regprocedure::text, r.routine_definition 
 from information_schema.routines r, pg_catalog.pg_proc p 
 where r.specific_name = p.proname || '_' || p.oid "
 
     FPERM1="
-select 'function permissions', rp.specific_schema, p.oid::regprocedure::text || '-role:' || rp.grantee,
+select 'function permissions', quote_ident(rp.specific_schema), p.oid::regprocedure::text || '-role:' || rp.grantee,
 'privilege_type:' || rp.privilege_type || ',is_grantable:' || rp.is_grantable
 from information_schema.routine_privileges rp, pg_proc p
 where rp.specific_name = p.proname || '_' || p.oid"
 
     FOWNER="
-select 'function owner', n.nspname, p.oid::regprocedure::text, r.rolname
+select 'function owner', quote_ident(n.nspname), p.oid::regprocedure::text, r.rolname
 from pg_catalog.pg_roles r, pg_catalog.pg_proc p, pg_catalog.pg_namespace n
 where r.oid = p.proowner and n.oid = p.pronamespace"
 
     FLANGUAGE="
-select 'function language', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.external_language
+select 'function language', quote_ident(r.specific_schema), r.specific_schema || '.' || p.oid::regprocedure::text, r.external_language
 from information_schema.routines r, pg_catalog.pg_proc p
 where
     r.specific_name = p.proname || '_' || p.oid "
 
     FSECTYPE="
-select 'function security type', r.specific_schema, r.specific_schema || '.' || p.oid::regprocedure::text, r.security_type
+select 'function security type', quote_ident(r.specific_schema), r.specific_schema || '.' || p.oid::regprocedure::text, r.security_type
 from information_schema.routines r, pg_catalog.pg_proc p
 where 
     r.specific_name = p.proname || '_' || p.oid"
@@ -151,22 +151,22 @@ from pg_catalog.pg_proc p, pg_catalog.pg_namespace n
 where n.oid = p.pronamespace"
 
     TRIGGERS="
-select 'trigger', t.trigger_schema, t.trigger_schema || '.' || t.event_object_table || '.' || t.trigger_name ||'/'|| t.event_manipulation, 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
+select 'trigger', quote_ident(t.trigger_schema), quote_ident(t.trigger_schema) || '.' || quote_ident(t.event_object_table) || '.' || quote_ident(t.trigger_name) ||'/'|| quote_ident(t.event_manipulation), 'action:' || t.action_statement ||',orientation:'||t.action_orientation || ',timing:' || t.action_timing
 from information_schema.triggers t"
 
     CHECKCON="
-select 'check constraint', n.nspname, n.nspname || '.' || r.relname || ':' || c.conname, consrc
+select 'check constraint', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(r.relname) || ':' || c.conname, consrc
 from
    pg_catalog.pg_class r, pg_catalog.pg_namespace n, pg_catalog.pg_constraint c
 where
    r.oid = c.conrelid and n.oid = c.connamespace and c.consrc is not null"
 
     INDEXES="
-select 'index', schemaname, schemaname || '.' || tablename || ':' || indexname, indexdef
+select 'index', quote_ident(schemaname), quote_ident(schemaname) || '.' || quote_ident(tablename) || ':' || quote_ident(indexname), indexdef
 from pg_catalog.pg_indexes"
 
     FOREIGNKEYS="
-select 'foreign key', constraint_schema, constraint_schema || '.' || c.relname || ':' || constraint_name,
+select 'foreign key', quote_ident(constraint_schema), quote_ident(constraint_schema) || '.' || quote_ident(c.relname) || ':' || constraint_name,
 unique_constraint_schema || '.' || unique_constraint_name || ',match:' || match_option || ',update_rule:' || update_rule || ',delete_rule:' || delete_rule
 from pg_catalog.pg_class c, pg_catalog.pg_constraint pc, information_schema.referential_constraints rc, pg_catalog.pg_namespace n
 where
@@ -176,18 +176,18 @@ where
    c.relnamespace = n.oid"
 
     TYPES="
-select 'data type', n.nspname, n.nspname || '.' || t.typname, 'length:'||t.typlen::text || ',byval:'||t.typbyval::text||',phystype:'||t.typtype||',category:'||t.typcategory||',ispreferred:'||t.typispreferred::text||',delimiter:'||t.typdelim||'input:'||t.typinput::text||'output:'||t.typoutput::text||'receive:'||t.typreceive::text||'send:'||t.typsend::text||'modin:'||t.typmodin::text||'modout:'||t.typmodout::text||'analyze:'||t.typanalyze::text||'align:'||t.typalign::text||'storage:'||t.typstorage::text||'notnull:'||t.typnotnull::text||'typmod:'||t.typtypmod::text||'ndims:'||t.typndims::text||'collation:'||t.typcollation::text
+select 'data type', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(t.typname), 'length:'||t.typlen::text || ',byval:'||t.typbyval::text||',phystype:'||t.typtype||',category:'||t.typcategory||',ispreferred:'||t.typispreferred::text||',delimiter:'||t.typdelim||'input:'||t.typinput::text||'output:'||t.typoutput::text||'receive:'||t.typreceive::text||'send:'||t.typsend::text||'modin:'||t.typmodin::text||'modout:'||t.typmodout::text||'analyze:'||t.typanalyze::text||'align:'||t.typalign::text||'storage:'||t.typstorage::text||'notnull:'||t.typnotnull::text||'typmod:'||t.typtypmod::text||'ndims:'||t.typndims::text||'collation:'||t.typcollation::text
 from pg_catalog.pg_type t, pg_namespace n
 where t.typnamespace = n.oid"
     
     TYPEOWNERS="
-select 'data type owner', n.nspname, n.nspname || '.' || t.typname, u.usename
+select 'data type owner', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(t.typname), u.usename
 from pg_catalog.pg_type t, pg_namespace n, pg_user u
 where 
    t.typnamespace = n.oid and u.usesysid = t.typowner"
 
     OPERATORS="
-select 'operator', n.nspname, n.nspname || '.' || t.oprname,
+select 'operator', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(t.oprname),
 'kind:'|| t.oprkind::text ||
 ',canmerge:'|| t.oprcanmerge::text ||
 ',canhash:'|| t.oprcanhash::text ||
@@ -204,7 +204,7 @@ where
 t.oprnamespace = n.oid"
     
     OPOWNERS="
-select 'operator owner', n.nspname, n.nspname || '.' || o.oprname, u.usename
+select 'operator owner', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(o.oprname), u.usename
 from pg_catalog.pg_operator o, pg_namespace n, pg_user u
 where 
    o.oprnamespace = n.oid and u.usesysid = o.oprowner"
