@@ -116,6 +116,7 @@ activity.
                   is, the set of metadata about the database schema
                   that will be used later for comparison with the
                   schema of another database.
+ - PGCMPIGNORESLONYTRIGGERS :: defaults to ~false~; if ~true~, then ignore differences involving triggers of the form created by Slony-I
 
 #+BEGIN_EXAMPLE
 $ PGURI=postgresql://postgres@localhost/test1 PGCMPOUTPUT=/tmp/test-pgcmp-file1 PGCLABEL=db1 ../pgcmp-dump

@@ -25,6 +25,7 @@ PGCUNEXPLAINED=${PGCUNEXPLAINED:-"${PGCWORKDIR}/unexplained.txt"}
 PGCBADEXPLAIN=${PGCBADEXPLAIN:-"${PGCWORKDIR}/badexplanations.txt"}
 PGCMPINPUT1=${PGCMPINPUT1:-${PGCWORKDIR}/${PGCLABEL1}.copy}
 PGCMPINPUT2=${PGCMPINPUT2:-${PGCWORKDIR}/${PGCLABEL2}.copy}
+PGCMPIGNORESLONYTRIGGERS=${PGCMPIGNORESLONYTRIGGERS:-"false"}
 
 touch $PGCEXPLANATIONS
 
@@ -42,6 +43,7 @@ Full output: (PGCFULLOUTPUT) [${PGCFULLOUTPUT}]
 Unexplained items output: (PGCUNEXPLAINED) [${PGCUNEXPLAINED}]
 Unexplained items as explanation: (PGCBADEXPLAIN) [${PGCBADEXPLAIN}]
 Schemas to omit: (PGCOMITSCHEMAS) [${PGCOMITSCHEMAS}]
+Should we ignore Slony-I triggers? (PGCMPIGNORESLONYTRIGGERS) [${PGCMPIGNORESLONYTRIGGERS}]
 "
 
 function compare_data () {
@@ -227,6 +229,7 @@ create table expected_differences (
 
 \\copy expected_differences from '${PGCEXPLANATIONS}';
 
+
 drop table if exists object_types cascade;
 create table object_types (
    object_type text primary key,
@@ -347,12 +350,76 @@ create table unexplained_items (
   importance integer
 );
 
+drop table if exists slony_triggered_tables;
+create table slony_triggered_tables (
+  schema_name text,
+  table_name text
+);
+
+insert into slony_triggered_tables (schema_name, table_name)
+ select object_schema, object_name
+ from data_raw r1
+ where object_type = 'table' and
+ exists (select 1 from data_raw r2 where
+         r1.object_schema = r2.object_schema and
+         r2.object_type = 'trigger' and
+         (
+          (r2.object_name like (r1.object_name || '_%_denyaccess/\"INSERT\"') and
+           r2.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE') or
+		  (r2.object_name like (r1.object_name || '_%_denyaccess/\"DELETE\"') and
+           r2.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE') or
+		  (r2.object_name like (r1.object_name || '_%_denyaccess/\"UPDATE\"') and
+           r2.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE') or
+          (r2.object_name like (r1.object_name || '_%_logtrigger/\"INSERT\"') and
+           r2.object_definition like 'action:EXECUTE PROCEDURE _%.logtrigger(%),orientation:ROW,timing:AFTER') or
+		  (r2.object_name like (r1.object_name || '_%_logtrigger/\"DELETE\"') and
+           r2.object_definition like 'action:EXECUTE PROCEDURE _%.logtrigger(%),orientation:ROW,timing:AFTER') or
+		  (r2.object_name like (r1.object_name || '_%_logtrigger/\"UPDATE\"') and
+           r2.object_definition like 'action:EXECUTE PROCEDURE _%.logtrigger(%),orientation:ROW,timing:AFTER')))
+group by 1, 2;
+
+create index stt_st on slony_triggered_tables(schema_name, table_name text);
+
+drop table if exists slony_triggers;
+create table slony_triggers (schema_name text, table_name text, trigger_name text);
+insert into slony_triggers (schema_name, table_name, trigger_name)
+  select r.object_schema, st.table_name, r.object_name
+  from data_raw r, slony_triggered_tables st
+  where
+   r.object_schema = st.schema_name and
+   r.object_type = 'trigger' and
+   (
+    (r.object_name like st.table_name || '_%_logtrigger/\"INSERT\"' and
+     r.object_definition like 'action:EXECUTE PROCEDURE _%.logtrigger(%),orientation:ROW,timing:AFTER') or
+    (r.object_name like st.table_name || '_%_logtrigger/\"UPDATE\"' and
+     r.object_definition like 'action:EXECUTE PROCEDURE _%.logtrigger(%),orientation:ROW,timing:AFTER') or
+    (r.object_name like st.table_name || '_%_logtrigger/\"DELETE\"' and
+     r.object_definition like 'action:EXECUTE PROCEDURE _%.logtrigger(%),orientation:ROW,timing:AFTER') or
+    (r.object_name like st.table_name || '_%_denyaccess/\"INSERT\"' and
+     r.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE') or
+    (r.object_name like st.table_name || '_%_denyaccess/\"UPDATE\"' and
+     r.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE') or
+    (r.object_name like st.table_name || '_%_denyaccess/\"DELETE\"' and
+     r.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE'));
+
+
+do \$\$
+begin
+   if ('${PGCMPIGNORESLONYTRIGGERS}' = 'true') then
+      insert into expected_differences (object_type, object_schema, object_name, difference_type, difference_cause, importance)
+         select 'trigger', schema_name, trigger_name, 'missing in 2nd DB', 'Slony-I Replication', 1
+         from slony_triggers;
+   end if;
+end
+\$\$ language plpgsql;
+
 insert into unexplained_items (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, importance)
 select object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, importance
 from raw_differences r
 where r.difference_type not in ('match') and
 not exists 
 (select 1 from expected_differences d where r.object_name = d.object_name and r.object_type = d.object_type);
+
 
 \\copy fulloutput to '${PGCFULLOUTPUT}';
 \\copy unexplained_items to '${PGCUNEXPLAINED}';
