@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Optional configuration:
-PGBINDIR=${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-9.1/bin"}
+PGBINDIR=${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-HEAD/bin"}
 PGCWORKDIR=${PGCWORKDIR:-"/tmp"}
 PSQL="${PGBINDIR}/psql --pset pager=off "
 PGCOMITSCHEMAS=${PGCOMITSCHEMAS:-"('pg_catalog','information_schema')"}
@@ -44,6 +44,8 @@ Unexplained items output: (PGCUNEXPLAINED) [${PGCUNEXPLAINED}]
 Unexplained items as explanation: (PGCBADEXPLAIN) [${PGCBADEXPLAIN}]
 Schemas to omit: (PGCOMITSCHEMAS) [${PGCOMITSCHEMAS}]
 Should we ignore Slony-I triggers? (PGCMPIGNORESLONYTRIGGERS) [${PGCMPIGNORESLONYTRIGGERS}]
+
+Expanded command line: [PGCMPINPUT1=${PGCMPINPUT1} PGCMPINPUT2=${PGCMPINPUT2} PGURI=${PGURI} PGCEXPLANATIONS=${PGCEXPLANATIONS} PGCFULLOUTPUT=${PGCFULLOUTPUT} PGCBADEXPLAIN=${PGCBADEXPLAIN} PGCOMITSCHEMAS=${PGCOMITSCHEMAS} PGCMPIGNORESLONYTRIGGERS=${PGCMPIGNORESLONYTRIGGERS} pgcmp]
 "
 
 function compare_data () {
@@ -378,7 +380,7 @@ insert into slony_triggered_tables (schema_name, table_name)
            r2.object_definition like 'action:EXECUTE PROCEDURE _%.logtrigger(%),orientation:ROW,timing:AFTER')))
 group by 1, 2;
 
-create index stt_st on slony_triggered_tables(schema_name, table_name text);
+create index stt_st on slony_triggered_tables(schema_name, table_name);
 
 drop table if exists slony_triggers;
 create table slony_triggers (schema_name text, table_name text, trigger_name text);
