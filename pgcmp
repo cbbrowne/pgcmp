@@ -453,7 +453,7 @@ from expected_differences where difference_cause in ('Not Properly Yet Explained
 union all
 select object_type, object_schema, object_name, difference_type, 'Misexplained', importance
 from expected_differences d 
-  where exists (select 1 from raw_differences r where r.object_type = d.object_type and r.object_name = d.object_name and r.difference_type <> d.difference_type);
+  where exists (select 1 from raw_differences r where r.object_type = d.object_type and r.object_name = d.object_name and (r.difference_type <> 'match' and r.difference_type <> d.difference_type));
 
 \echo Results Summary
 select object_type, difference_type, difference_cause, importance, count(*) from fulloutput group by 2, 1, 3, 4 order by 4, 2, 1, 3;
