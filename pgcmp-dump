@@ -34,10 +34,6 @@ function extract_schema_data () {
 --   PGUSER=${PGUSER}
 --   as at ${WHEN}"
 
-
-# For dump, we omit these schemas, plus additional toast/temp schemas
-PGCDOMITSCHEMAS="('pg_catalog','information_schema', 'pg_toast')"
-
 # Pull data for major object types:
 
 # BLANK is just a place-holder to establish the names and data types for the elements in the giant UNION query
@@ -264,7 +260,7 @@ ${OPERATORS}
 UNION ALL
 ${OPOWNERS} )
 select '${PGCLABEL}', object_schema, object_type, object_name, object_definition from pgd_all_data
-   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ${PGCDOMITSCHEMAS} or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
+   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ('pg_catalog','information_schema', 'pg_toast') or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
 )
 to stdout;"
 
@@ -280,5 +276,3 @@ else
     echo "Extracted schema data for ${PGURI}"
     ls -l ${PGCMPOUTPUT}
 fi
-
-
