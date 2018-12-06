@@ -11,8 +11,6 @@ PGPORT=${PGPORT:-"5432"}
 URIC="postgresql://${PGUSER}@${PGHOST}:${PGPORT}/${PGDB}"
 PGURI=${PGURI:-${URIC}}
 
-PGCOMITSCHEMAS=${PGCOMITSCHEMAS:-"('pg_catalog','information_schema')"}
-
 PGCLABEL=${PGCLABEL:-`echo "${PGURI}" | sed 's/postgresql\:\/\///g' | sed 's/\//\:/g'`}
 
 PGCMPOUTPUT=${PGCMPOUTPUT:-"${PGCWORKDIR}/${PGCLABEL}"}
@@ -21,7 +19,7 @@ echo "pgcmp-dump - extracting schema data from database PGURI=[${PGURI}]
 
 Data file containing output: PGCMPOUTPUT[${PGCMPOUTPUT}]
 Label: PGCLABEL=[${PGCLABEL}]
-Omit schemas: PGCOMITSCHEMAS=[${PGCOMITSCHEMAS}]
+
 "
 
 function extract_schema_data () {
@@ -35,6 +33,10 @@ function extract_schema_data () {
 --   PGPORT=${PGPORT}
 --   PGUSER=${PGUSER}
 --   as at ${WHEN}"
+
+
+# For dump, we omit these schemas, plus additional toast/temp schemas
+PGCDOMITSCHEMAS="('pg_catalog','information_schema', 'pg_toast')"
 
 # Pull data for major object types:
 
@@ -262,7 +264,7 @@ ${OPERATORS}
 UNION ALL
 ${OPOWNERS} )
 select '${PGCLABEL}', object_schema, object_type, object_name, object_definition from pgd_all_data
-   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ${PGCOMITSCHEMAS} or nspname = 'pg_toast' or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
+   where object_schema not in (select nspname from pg_catalog.pg_namespace where nspname in ${PGCDOMITSCHEMAS} or nspname like 'pg_temp_%' or nspname like 'pg_toast_temp_%')
 )
 to stdout;"
 

@@ -104,8 +104,8 @@ activity.
               URIs.  If the individual parameters above are offered,
               they will be constructed into a URI; if ~PGURI~ is
               populated, it will be used instead.
- - PGCOMITSCHEMAS :: Indicates (as a SQL clause suitable for ~IN~), a
-                     set of schema labels from
+ - PGCOMITSCHEMAS :: Indicates (as a SQL clause suitable to insert
+                     VALUES into a table), a set of schema labels from
                      ~pg_catalog.pg_namespace~ that should be omitted
                      from analysis.  As identifiers, they may require
                      doublequotes consistent with the function
@@ -124,7 +124,7 @@ pgcmp-dump - extracting schema data from database PGURI=[postgresql://postgres@l
 
 Data file containing output: PGCMPOUTPUT[/tmp/test-pgcmp-file1]
 Label: PGCLABEL=[db1]
-Omit schemas: PGCOMITSCHEMAS=[('pg_catalog','information_schema')]
+Omit schemas: PGCOMITSCHEMAS=[('pg_catalog'),('information_schema')]
 
 Extracted schema data for postgresql://postgres@localhost/test1
 -rw-r--r-- 1 cbbrowne cbbrowne 7350 Nov  3 12:12 /tmp/test-pgcmp-file1

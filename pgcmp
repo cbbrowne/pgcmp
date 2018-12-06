@@ -4,7 +4,7 @@
 PGBINDIR=${PGBINDIR:-"/var/lib/postgresql/dbs/postgresql-HEAD/bin"}
 PGCWORKDIR=${PGCWORKDIR:-"/tmp"}
 PSQL="${PGBINDIR}/psql --pset pager=off "
-PGCOMITSCHEMAS=${PGCOMITSCHEMAS:-"('pg_catalog','information_schema')"}
+PGCOMITSCHEMAS=${PGCOMITSCHEMAS:-"('pg_catalog'),('information_schema')"}
 
 ### Capture default URI based on what's in the environment
 ###  Use PGHOST/PGUSER/PGPORT if assigned
@@ -73,6 +73,21 @@ truncate data_raw;
 
 \\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${PGCMPINPUT1}';
 \\copy data_raw (label, object_schema, object_type, object_name, object_definition) from '${PGCMPINPUT2}';
+
+drop table if exists schemas_to_ignore;
+create table schemas_to_ignore (
+  schema_name text primary key,
+  schema_name_quoted text
+);
+
+insert into schemas_to_ignore (schema_name)
+  values ${PGCOMITSCHEMAS};
+
+update schemas_to_ignore
+  set schema_name_quoted = quote_ident(schema_name);
+create index stig_quoted on schemas_to_ignore(schema_name_quoted);
+
+analyze schemas_to_ignore;
 
 update data_raw set object_definition = '' where object_definition is null;
 
@@ -149,8 +164,10 @@ create index rd_label2 on raw_differences(label2);
 create index rd_id2 on raw_differences(id2);
 
 delete from raw_differences
-  where object_schema in ${PGCOMITSCHEMAS}
-     or quote_ident(object_schema) in ${PGCOMITSCHEMAS};
+  where object_schema in (select schema_name from schemas_to_ignore);
+
+delete from raw_differences
+  where object_schema in (select schema_name_quoted from schemas_to_ignore);
 
 update raw_differences 
   set importance = NULL
@@ -335,7 +352,7 @@ not exists
 --- 7.  Ignore differences arising from omitted schemas
 insert into fulloutput (object_name, object_schema, object_type, label1, object_definition1, label2, object_definition2, difference_type, difference_cause, importance)
 select r.object_name, r.object_schema, r.object_type, r.label1, r.object_definition1, r.label2, r.object_definition2, r.difference_type, NULL::text, r.importance
-from raw_differences r where r.difference_type in ('mismatch', 'missing in 1st DB', 'missing in 2nd DB') and r.object_schema in ${PGCOMITSCHEMAS};
+from raw_differences r where r.difference_type in ('mismatch', 'missing in 1st DB', 'missing in 2nd DB') and exists (select 1 from schemas_to_ignore where schema_name = r.object_schema);
 
 drop table if exists unexplained_items;
 create table unexplained_items (
