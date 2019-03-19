@@ -41,6 +41,7 @@ echo "pgcmp: Comparing schema data
 
  Omit schemas:
    PGCOMITSCHEMAS=[${PGCOMITSCHEMAS}]
+   PGCMPIGNORESLONYTRIGGERS=[${PGCMPIGNORESLONYTRIGGERS}]
 
  Work Database:
    PGURI - ${PGURI}
@@ -58,7 +59,7 @@ Expanded command line: [PGCMPINPUT1=${PGCMPINPUT1} PGCMPINPUT2=${PGCMPINPUT2} PG
 function compare_data () {
 
     COMPARESCRIPT="
-drop table if exists data_raw cascade;
+drop table if exists data_raw, schemas_to_ignore, raw_differences, expected_differences, object_types, fulloutput, slony_triggered_tables, slony_triggers, unexplained_items, badexplanations_items cascade;
 create table data_raw (
     label text,
     id serial,
@@ -426,15 +427,17 @@ insert into slony_triggers (schema_name, table_name, trigger_name)
     (r.object_name like st.table_name || '_%_denyaccess/\"UPDATE\"' and
      r.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE') or
     (r.object_name like st.table_name || '_%_denyaccess/\"DELETE\"' and
-     r.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE'));
+     r.object_definition like 'action:EXECUTE PROCEDURE _%.denyaccess(%),orientation:ROW,timing:BEFORE'))
+   group by 1, 2, 3;
 
 
 do \$\$
 begin
    if ('${PGCMPIGNORESLONYTRIGGERS}' = 'true') then
+      raise notice 'Adding expected differences for Slony Triggers';
       insert into expected_differences (object_type, object_schema, object_name, difference_type, difference_cause, importance)
          select 'trigger', schema_name, trigger_name, 'missing in 2nd DB', 'Slony-I Replication', 1
-         from slony_triggers;
+         from slony_triggers group by 1, 2, 3, 4, 5, 6;
    end if;
 end
 \$\$ language plpgsql;
@@ -486,7 +489,6 @@ select object_type, object_name, difference_type, difference_cause, importance f
 	echo "Number of items inadequately explained: ${baditemcount}"
 	exit 3
     fi
-
 }
 
 compare_data
