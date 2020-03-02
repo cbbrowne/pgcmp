@@ -153,11 +153,11 @@ select 'trigger', quote_ident(t.trigger_schema), quote_ident(t.trigger_schema) |
 from information_schema.triggers t"
 
     CHECKCON="
-select 'check constraint', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(r.relname) || ':' || c.conname, consrc
+select 'check constraint', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(r.relname) || ':' || c.conname, pg_catalog.pg_get_constraintdef(c.oid) as consrc
 from
    pg_catalog.pg_class r, pg_catalog.pg_namespace n, pg_catalog.pg_constraint c
 where
-   r.oid = c.conrelid and n.oid = c.connamespace and c.consrc is not null"
+   r.oid = c.conrelid and n.oid = c.connamespace and pg_catalog.pg_get_constraintdef(c.oid) is not null"
 
     INDEXES="
 select 'index', quote_ident(schemaname), quote_ident(schemaname) || '.' || quote_ident(tablename) || ':' || quote_ident(indexname), indexdef
