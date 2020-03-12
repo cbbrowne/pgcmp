@@ -28,7 +28,7 @@ functional-test:
   script:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
-    - netstat -an | grep PG
+    - env | grep PG
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
