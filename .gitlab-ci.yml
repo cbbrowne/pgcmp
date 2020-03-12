@@ -19,8 +19,8 @@ connect:
 
 before_script:
   - echo "Before script section"
-  - echo "For example you might run an update here or install a build dependency"
-  - echo "Or perhaps you might print out some debugging details"
+  - echo "Installing prerequisites"
+  - gem install org-ruby
 
 after_script:
   - echo "After script section"
@@ -29,8 +29,6 @@ after_script:
 build1:
   stage: build
   script:
-    - which ruby
-    - gem install org-ruby
     - make all
 
 test1:
