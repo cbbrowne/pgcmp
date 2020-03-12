@@ -31,13 +31,14 @@ build1:
   script:
     - make all
 
-test1:
+simple-tests:
   stage: test
+  image: postgres
   script:
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
-test2:
+fake-test:
   stage: test
   script:
     - echo "Do another parallel test here"
