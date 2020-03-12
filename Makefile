@@ -13,7 +13,7 @@ rpm: $(TARBALL)
 	rpmbuild -tb $(TARBALL)
 
 README.html: org-to-html README.org
-	./org-to-html
+	ruby org-to-html
 
 clean:
 	rm -rf $(VDIR)
