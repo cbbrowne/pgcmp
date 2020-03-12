@@ -10,7 +10,7 @@ psql -d test2 -f schema2.sql
 
 export PGBINDIR=/usr/bin
 
-BASEURI="postgresql://$PGUSER@%2Fvar%2Frun%2Fpostgresql%2F"
+BASEURI="postgresql://$PGUSER@%2Fvar%2Frun%2Fpostgresql/"
 
 # Dump out schema data for the two databases
 PGURI=${BASEURI}test1 PGCMPOUTPUT=/tmp/test-pgcmp-file1 PGCLABEL=db1 ../pgcmp-dump
