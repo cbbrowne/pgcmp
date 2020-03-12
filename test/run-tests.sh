@@ -4,12 +4,15 @@ echo "Running tests for pgcmp"
 echo "------------------------"
 
 export PGBINDIR=${PGBINDIR:-"/usr/bin"}
-export BASEURI="postgresql://$PGUSER@${PGHOST}/"
+export BASEURI="postgresql://$PGUSER@${PGHOST}:${PGPORT}/"
+export POST="?host=/var/run/postgresql"
+#export POST="?host=/tmp"
 echo "Configuration...
 
 PGHOST=${PGHOST}
 PGUSER=${PGUSER}
 BASEURI=${BASEURI}
+POST=${POST}
 PGBINDIR=${PGBINDIR}"
 
 
@@ -23,8 +26,8 @@ createdb comparisondatabase
 psql -d test2 -f schema2.sql
 
 # Dump out schema data for the two databases
-PGURI=${BASEURI}test1 PGCMPOUTPUT=/tmp/test-pgcmp-file1 PGCLABEL=db1 ../pgcmp-dump
-PGURI=${BASEURI}test2 PGCMPOUTPUT=/tmp/test-pgcmp-file2 PGCLABEL=db2 ../pgcmp-dump
+PGURI=${BASEURI}test1${POST} PGCMPOUTPUT=/tmp/test-pgcmp-file1 PGCLABEL=db1 ../pgcmp-dump
+PGURI=${BASEURI}test2${POST} PGCMPOUTPUT=/tmp/test-pgcmp-file2 PGCLABEL=db2 ../pgcmp-dump
 
 # Perform comparison
-PGURI=${BASEURI}comparisondatabase PGCMPINPUT1=/tmp/test-pgcmp-file1 PGCMPINPUT2=/tmp/test-pgcmp-file2 PGCEXPLANATIONS=./explanations.txt PGCLABEL1=db1 PGCLABEL2=db2 ../pgcmp
+PGURI=${BASEURI}comparisondatabase${POST} PGCMPINPUT1=/tmp/test-pgcmp-file1 PGCMPINPUT2=/tmp/test-pgcmp-file2 PGCEXPLANATIONS=./explanations.txt PGCLABEL1=db1 PGCLABEL2=db2 ../pgcmp
