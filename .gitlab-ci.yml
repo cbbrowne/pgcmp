@@ -29,13 +29,14 @@ after_script:
 build1:
   stage: build
   script:
-    - echo "Do your build here"
+    - gem install org-ruby
+    - make all
 
 test1:
   stage: test
   script:
-    - echo "Do a test here"
-    - echo "For example run a test suite"
+    - echo "running tests"
+    - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
 test2:
   stage: test
