@@ -29,6 +29,7 @@ after_script:
 build1:
   stage: build
   script:
+    - which ruby
     - gem install org-ruby
     - make all
 
