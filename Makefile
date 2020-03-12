@@ -4,9 +4,9 @@ TARBALL := pgcmp-$(VERSION).tar.bz2
 
 all: rpm
 
-$(TARBALL): README.html README.txt pgcmp pgcmp-dump pgcmp.spec
+$(TARBALL): README.html README.org pgcmp pgcmp-dump pgcmp.spec
 	mkdir -p $(VDIR)
-	cp README.html README.txt pgcmp pgcmp-dump pgcmp.spec $(VDIR)
+	cp README.html README.org pgcmp pgcmp-dump pgcmp.spec $(VDIR)
 	tar cfvj $(TARBALL) $(VDIR)
 
 rpm: $(TARBALL)
