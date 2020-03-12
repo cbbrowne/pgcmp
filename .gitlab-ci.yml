@@ -42,7 +42,6 @@ connect-test:
   - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show port;"
   - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
   - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
-  - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h "" -c "show unix_socket_directories;"
 
 deploy1:
   stage: deploy

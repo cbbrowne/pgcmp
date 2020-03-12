@@ -8,6 +8,7 @@ export BASEURI="postgresql://$PGUSER@${PGHOST}:${PGPORT}/"
 export POST="?host=/var/run/postgresql"
 export comparison=comparisondatabase
 #export POST="?host=/tmp"
+COMMONURI=${BASEURI}postgres${POST}
 T1URI=${BASEURI}test1${POST}
 T2URI=${BASEURI}test2${POST}
 CURI=${BASEURI}${comparison}${POST}
@@ -25,18 +26,20 @@ CURI=${CURI}
 "
 
 
-for db in test1 test2; do
-    dropdb --if-exists $db
-    createdb -h ${PGHOST} $db
-    psql -h ${PGHOST} -d ${db} -f schema1.sql
+for db in test1 test2 comparison; do
+    psql -d ${COMMONURI} -c "drop database if exists ${db};"
+    psql -d ${COMMONURI} -c "create database ${db};"
 done
-dropdb --if-exists ${comparison}
-createdb ${comparison}
+
+for db in test1 test2; do
+    psql -d ${BASEURI}${db}${POST} -f schema1.sql
+done
 psql -d test2 -f schema2.sql
 
 # Dump out schema data for the two databases
-PGURI=$TEST1URI PGCMPOUTPUT=/tmp/test-pgcmp-file1 PGCLABEL=db1 ../pgcmp-dump
-PGURI=$TEST2URI PGCMPOUTPUT=/tmp/test-pgcmp-file2 PGCLABEL=db2 ../pgcmp-dump
+for t in test1 test2; do
+    PGURI=${BASEURI}${t}${POST} PGCMPOUTPUT=/tmp/test-pgcmp-${t} PGCLABEL=${t} ../pgcmp-dump
+done
 
 # Perform comparison
-PGURI=$CURI PGCMPINPUT1=/tmp/test-pgcmp-file1 PGCMPINPUT2=/tmp/test-pgcmp-file2 PGCEXPLANATIONS=./explanations.txt PGCLABEL1=db1 PGCLABEL2=db2 ../pgcmp
+PGURI=$CURI PGCMPINPUT1=/tmp/test-pgcmp-test1 PGCMPINPUT2=/tmp/test-pgcmp-test2 PGCEXPLANATIONS=./explanations.txt PGCLABEL1=test1 PGCLABEL2=test2 ../pgcmp
