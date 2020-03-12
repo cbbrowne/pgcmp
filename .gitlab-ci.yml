@@ -10,12 +10,8 @@ variables:
   POSTGRES_USER: runner
   POSTGRES_PASSWORD: ""
   POSTGRES_HOST_AUTH_METHOD: trust
-  ARTIFACT_TARGET: /mnt/storage/artifacts
+  ARTIFACT_TARGET: /tmp/artifacts
 
-artifacts:
-  enabled: true
-  path: $ARTIFACT_TARGET
-  
 connect:
   image: postgres
   script:
