@@ -1,6 +1,5 @@
 # This file is a template, and might need editing before it works on your project.
 # see https://docs.gitlab.com/ce/ci/yaml/README.html for all available options
-
   
 services:
   - postgres:12.2-alpine
@@ -19,11 +18,6 @@ connect:
   - export PGPASSWORD=$POSTGRES_PASSWORD
   - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 'OK' AS status;"
 
-before_script:
-  - echo "Before script section"
-  - echo "Installing prerequisites"
-  - gem install org-ruby
-
 after_script:
   - echo "After script section"
   - echo "For example you might do some cleanup here"
@@ -31,20 +25,15 @@ after_script:
 build1:
   stage: build
   script:
+    - gem install org-ruby
     - make all
 
-simple-tests:
+functional-test:
   stage: test
   image: postgres
   script:
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
-
-fake-test:
-  stage: test
-  script:
-    - echo "Do another parallel test here"
-    - echo "For example run a lint test"
 
 deploy1:
   stage: deploy
