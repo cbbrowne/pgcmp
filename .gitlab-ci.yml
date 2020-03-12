@@ -29,8 +29,6 @@ functional-test:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
     - export PGHOST=localhost
-    - env | grep PG
-    - cat /var/lib/postgresql/data/postgresql.conf
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
