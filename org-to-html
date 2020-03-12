@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!ruby
 require 'rubygems'
 require 'org-ruby'
 
