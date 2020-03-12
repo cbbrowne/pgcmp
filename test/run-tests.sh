@@ -1,4 +1,18 @@
 #!/bin/sh
+
+echo "Running tests for pgcmp"
+echo "------------------------"
+
+export PGBINDIR=${PGBINDIR:-"/usr/bin"}
+export BASEURI="postgresql://$PGUSER@${PGHOST}/"
+echo "Configuration...
+
+PGHOST=${PGHOST}
+PGUSER=${PGUSER}
+BASEURI=${BASEURI}
+PGBINDIR=${PGBINDIR}"
+
+
 for db in test1 test2; do
     dropdb --if-exists $db
     createdb -h ${PGHOST} $db
@@ -7,10 +21,6 @@ done
 dropdb --if-exists comparisondatabase
 createdb comparisondatabase
 psql -d test2 -f schema2.sql
-
-export PGBINDIR=/usr/bin
-
-BASEURI="postgresql://$PGUSER@%2Fvar%2Frun%2Fpostgresql/"
 
 # Dump out schema data for the two databases
 PGURI=${BASEURI}test1 PGCMPOUTPUT=/tmp/test-pgcmp-file1 PGCLABEL=db1 ../pgcmp-dump
