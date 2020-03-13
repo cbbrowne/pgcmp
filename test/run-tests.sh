@@ -5,9 +5,8 @@ echo "------------------------"
 
 export PGBINDIR=${PGBINDIR:-"/usr/bin"}
 export BASEURI="postgresql://$PGUSER@${PGHOST}:${PGPORT}/"
-export POST="?host=/var/run/postgresql"
+export POST=""
 export comparison=comparisondatabase
-#export POST="?host=/tmp"
 COMMONURI=${BASEURI}postgres${POST}
 T1URI=${BASEURI}test1${POST}
 T2URI=${BASEURI}test2${POST}
@@ -24,7 +23,6 @@ T1URI=${T1URI}
 T2URI=${T2URI}
 CURI=${CURI}
 "
-
 
 for db in test1 test2 comparison; do
     psql -d ${COMMONURI} -c "drop database if exists ${db};"
