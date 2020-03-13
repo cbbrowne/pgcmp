@@ -4,13 +4,16 @@ echo "Running tests for pgcmp"
 echo "------------------------"
 
 export PGBINDIR=${PGBINDIR:-"/usr/bin"}
-export BASEURI="postgresql://$PGUSER@${PGHOST}:${PGPORT}/"
-export POST=""
+#export BASEURI="postgresql://$PGUSER@${PGHOST}:${PGPORT}/"
+export BASEURI="user=${PGUSER} port=${PGPORT}"
+if [ $PGHOST != "" ]; then
+    BASEURI="${BASEURI} host=${PGHOST}"
+fi
 export comparison=comparisondatabase
-COMMONURI=${BASEURI}postgres${POST}
-T1URI=${BASEURI}test1${POST}
-T2URI=${BASEURI}test2${POST}
-CURI=${BASEURI}${comparison}${POST}
+COMMONURI="${BASEURI} dbname=postgres"
+T1URI="${BASEURI} dbname=test1"
+T2URI="${BASEURI} dbname=test2"
+CURI="${BASEURI} dbname=comparison"
 
 echo "Configuration...
 
@@ -25,18 +28,18 @@ CURI=${CURI}
 "
 
 for db in test1 test2 comparison; do
-    psql -d ${COMMONURI} -c "drop database if exists ${db};"
-    psql -d ${COMMONURI} -c "create database ${db};"
+    psql -d "${COMMONURI}" -c "drop database if exists ${db};"
+    psql -d "${COMMONURI}" -c "create database ${db};"
 done
 
 for db in test1 test2; do
-    psql -d ${BASEURI}${db}${POST} -f schema1.sql
+    psql -d "${BASEURI} dbname=${db}" -f schema1.sql
 done
-psql -d test2 -f schema2.sql
+psql -d "${BASEURI} dbname=test2" -f schema2.sql
 
 # Dump out schema data for the two databases
 for t in test1 test2; do
-    PGURI=${BASEURI}${t}${POST} PGCMPOUTPUT=/tmp/test-pgcmp-${t} PGCLABEL=${t} ../pgcmp-dump
+    PGURI="${BASEURI} dbname=${t}" PGCMPOUTPUT=/tmp/test-pgcmp-${t} PGCLABEL=${t} ../pgcmp-dump
 done
 
 # Perform comparison
