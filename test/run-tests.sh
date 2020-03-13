@@ -6,7 +6,9 @@ echo "------------------------"
 export PGBINDIR=${PGBINDIR:-"/usr/bin"}
 #export BASEURI="postgresql://$PGUSER@${PGHOST}:${PGPORT}/"
 export BASEURI="user=${PGUSER} port=${PGPORT}"
-if [ $PGHOST != "" ]; then
+if [ $PGHOST = "" ]; then
+    unset PGHOST
+else
     BASEURI="${BASEURI} host=${PGHOST}"
 fi
 export comparison=comparisondatabase
