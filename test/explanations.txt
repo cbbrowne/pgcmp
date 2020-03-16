@@ -35,13 +35,20 @@ sequence permissions	s1	s1.t3_t3_c1_seq	missing in 1st DB	Induced by schema2.sql
 data type owner	s1	s1.t3_t3_c1_seq	missing in 1st DB	Induced by schema2.sql	3
 data type owner	s1	s1.t3	missing in 1st DB	Induced by schema2.sql	3
 data type owner	s1	s1._t3	missing in 1st DB	Induced by schema2.sql	3
-options	\N	s1.t1	mismatch	Induced by schema2.sql	\N
 data type owner	s2	s2.d1	missing in 2nd DB	Induced by schema2.sql	4
 data type owner	s2	s2._d1	missing in 2nd DB	Induced by schema2.sql	4
-index	\N	s1.t1:t1_c6	mismatch	Induced by schema2.sql	\N
-options	\N	s1.t1_c6	missing in 1st DB	Induced by schema2.sql	\N
 function definition	public	public.some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)	missing in 1st DB	overloaded function where instance only added in 2nd DB	1
 function owner	public	some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)	missing in 1st DB	overloaded function where instance only added in 2nd DB	1
 function language	public	public.some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)	missing in 1st DB	overloaded function where instance only added in 2nd DB	1
 function security type	public	public.some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)	missing in 1st DB	overloaded function where instance only added in 2nd DB	1
 function config	public	some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)	missing in 1st DB	overloaded function where instance only added in 2nd DB	1
+trigger	s1	s1.t1.trigger_1/"UPDATE"	missing in 2nd DB	Induced by schema2.sql	1
+function permissions	s2	s2.f1()-role:postgres	missing in 2nd DB	Induced by schema2.sql	1
+function permissions	s2	s2.f1()-role:PUBLIC	missing in 2nd DB	Induced by schema2.sql	1
+function permissions	public	some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)-role:postgres	missing in 1st DB	Induced by schema2.sql	1
+function permissions	public	some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)-role:PUBLIC	missing in 1st DB	Induced by schema2.sql	1
+check constraint	s1	s1.t3:t3_pkey	missing in 1st DB	Induced by schema2.sql	1
+check constraint	s1	s1.t3:t3_t3_c2_key	missing in 1st DB	Induced by schema2.sql	1
+options	\N	s1.t1	mismatch	Induced by schema2.sql	4
+index	\N	s1.t1:t1_c6	mismatch	Induced by schema2.sql	4
+options	\N	s1.t1_c6	missing in 1st DB	Induced by schema2.sql	4
