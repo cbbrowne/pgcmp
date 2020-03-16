@@ -52,3 +52,5 @@ check constraint	s1	s1.t3:t3_t3_c2_key	missing in 1st DB	Induced by schema2.sql	
 options	\N	s1.t1	mismatch	Induced by schema2.sql	4
 index	\N	s1.t1:t1_c6	mismatch	Induced by schema2.sql	4
 options	\N	s1.t1_c6	missing in 1st DB	Induced by schema2.sql	4
+function permissions	public	some_overloaded_function(integer,integer,text,timestamp with time zone,bigint,uuid,text)-role:runner	missing in 1st DB	Induced by schema2.sql	1
+function permissions	s2	s2.f1()-role:runner	missing in 2nd DB	Induced by schema2.sql	1
