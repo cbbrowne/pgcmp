@@ -37,7 +37,7 @@ done
 for db in test1 test2; do
     psql -d "${BASEURI} dbname=${db}" -f schema1.sql
 done
-psql -d "${BASEURI} dbname=test2" -f schema2.sql
+psql -d "${T2URI}" -f schema2.sql
 
 # Dump out schema data for the two databases
 for t in test1 test2; do
@@ -45,4 +45,12 @@ for t in test1 test2; do
 done
 
 # Perform comparison
-PGURI=$CURI PGCMPINPUT1=/tmp/test-pgcmp-test1 PGCMPINPUT2=/tmp/test-pgcmp-test2 PGCEXPLANATIONS=./explanations.txt PGCLABEL1=test1 PGCLABEL2=test2 ../pgcmp
+PGURI="$CURI" PGCMPINPUT1=/tmp/test-pgcmp-test1 PGCMPINPUT2=/tmp/test-pgcmp-test2 PGCEXPLANATIONS=./explanations.txt PGCLABEL1=test1 PGCLABEL2=test2 ../pgcmp
+
+retcode=$?
+if [ $retcode -ne 0 ]; then
+    echo "Comparison failed - retcode=$retcode"
+    cat /tmp/perform-comparison.log
+else
+    echo "Comparison succeeded OK"
+fi
