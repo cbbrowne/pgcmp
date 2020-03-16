@@ -45,7 +45,7 @@ for t in test1 test2; do
 done
 
 # Perform comparison
-PGURI="$CURI" PGCMPINPUT1=/tmp/test-pgcmp-test1 PGCMPINPUT2=/tmp/test-pgcmp-test2 PGCEXPLANATIONS=./explanations.txt PGCLABEL1=test1 PGCLABEL2=test2 ../pgcmp
+PGURI="$CURI" PGCMPINPUT1=/tmp/test-pgcmp-test1 PGCMPINPUT2=/tmp/test-pgcmp-test2 PGCEXPLANATIONS=${PWD}/explanations.txt PGCLABEL1=test1 PGCLABEL2=test2 ../pgcmp
 
 retcode=$?
 if [ $retcode -ne 0 ]; then
