@@ -476,7 +476,7 @@ select object_type, object_name, difference_type, difference_cause, importance f
 "
     echo "${COMPARESCRIPT}" > ${PGCWORKDIR}/load-comparison-data.sql
 
-    ${PSQL} -d ${PGURI} -f ${PGCWORKDIR}/load-comparison-data.sql > ${PGCWORKDIR}/perform-comparison.log 2>&1 
+    ${PSQL} -d "${PGURI}" -f ${PGCWORKDIR}/load-comparison-data.sql > ${PGCWORKDIR}/perform-comparison.log 2>&1 
     retcode=$?
     if [ $retcode -ne 0 ]; then
 	echo "Could not run comparison against database PGDATABASE=${PGURI}"
