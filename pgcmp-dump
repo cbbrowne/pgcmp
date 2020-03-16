@@ -185,7 +185,7 @@ where
    t.typnamespace = n.oid and u.usesysid = t.typowner"
 
     OPERATORS="
-select 'operator', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(t.oprname),
+select 'operator', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(t.oprname)|| '(' || quote_ident(tl.typname) || ',' || quote_ident(tr.typname) || ')',
 'kind:'|| t.oprkind::text ||
 ',canmerge:'|| t.oprcanmerge::text ||
 ',canhash:'|| t.oprcanhash::text ||
@@ -197,9 +197,9 @@ select 'operator', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quot
 ',code:'|| t.oprcode::text ||
 ',rest:'|| t.oprrest::text ||
 ',join:'|| t.oprjoin::text
-from pg_catalog.pg_operator t, pg_catalog.pg_namespace n
+from pg_catalog.pg_operator t, pg_catalog.pg_namespace n, pg_catalog.pg_type tl, pg_catalog.pg_type tr
 where 
-t.oprnamespace = n.oid"
+t.oprnamespace = n.oid and tl.oid = t.oprleft and tr.oid = t.oprright"
     
     OPOWNERS="
 select 'operator owner', quote_ident(n.nspname), quote_ident(n.nspname) || '.' || quote_ident(o.oprname), u.usename
