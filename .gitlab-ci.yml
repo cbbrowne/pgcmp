@@ -29,6 +29,7 @@ functional-test:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
     - export PGPORT=5432
+    - export PGHOST=postgres
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
