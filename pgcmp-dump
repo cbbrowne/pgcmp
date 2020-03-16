@@ -267,12 +267,12 @@ to stdout;"
     echo "${EVERYTHING}"
 }
 
-extract_schema_data "${PGCLABEL}" | ${PGBINDIR}/psql -q -d ${PGURI}  > ${PGCMPOUTPUT}
+extract_schema_data "${PGCLABEL}" | ${PGBINDIR}/psql -q -d "${PGURI}"  > ${PGCMPOUTPUT}
 retcode=$?
 if [ $retcode -ne 0 ]; then
-    echo "Could not extract schema data for label ${PGCLABEL} from database PGDATABASE=${PGURI}"
+    echo "Could not extract schema data for label ${PGCLABEL} from database PGDATABASE=[${PGURI}]"
     exit 1
 else
-    echo "Extracted schema data for ${PGURI}"
+    echo "Extracted schema data for [${PGURI}]"
     ls -l ${PGCMPOUTPUT}
 fi
