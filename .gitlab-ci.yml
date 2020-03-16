@@ -42,7 +42,7 @@ connect-test:
   - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show port;"
   - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
   - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
-  - psql -d "user=runner port=5432 dbname=test1" -c "select 'OK' as query_from_connstring;"
+  - psql -d "user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
   - ls -l /var/run/postgresql
 
 deploy1:
