@@ -4,9 +4,15 @@ services:
 variables:
   POSTGRES_DB: nice_marmot
   POSTGRES_USER: runner
-  POSTGRES_PASSWORD: ""
+  POSTGRES_PASSWORD: runner
   POSTGRES_HOST_AUTH_METHOD: trust
   ARTIFACT_TARGET: /tmp/artifacts
+  REGUSER: runner
+  SUPERUSER: runner
+  PGPORT: 5432
+  MAHOUTHOME: /builds/cbbrowne/mahout
+  PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
+  PGBINDIR: /usr/lib/postgresql/12/bin
 
 build1:
   stage: build
@@ -14,6 +20,19 @@ build1:
     - gem install org-ruby
     - make all
 
+connect-test:
+  stage: test
+  image: postgres
+  script:
+    - export PGPASSWORD=$POSTGRES_PASSWORD
+    - which psql
+    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 'OK' AS status;"
+    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show port;"
+    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
+    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
+    - psql -d "host=postgres user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
+    - ls -l /var/run/postgresql
+    
 functional-test:
   stage: test
   image: postgres
@@ -25,20 +44,3 @@ functional-test:
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
-connect-test:
-  image: postgres
-  script:
-  # official way to provide password to psql: http://www.postgresql.org/docs/9.3/static/libpq-envars.html
-  - export PGPASSWORD=$POSTGRES_PASSWORD
-  - which psql
-  - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 'OK' AS status;"
-  - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show port;"
-  - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
-  - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
-  - psql -d "host=postgres user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
-  - ls -l /var/run/postgresql
-
-deploy1:
-  stage: deploy
-  script:
-    - echo "Do your deploy here"
