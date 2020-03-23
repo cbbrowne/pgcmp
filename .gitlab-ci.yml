@@ -13,6 +13,26 @@ variables:
   MAHOUTHOME: /builds/cbbrowne/mahout
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
   PGBINDIR: /usr/lib/postgresql/12/bin
+  PG_CONTAINER: $CI_REGISTRY_IMAGE:my-custom-postgres
+
+stages:
+  - builddocker
+  - build
+  - test
+  - release
+  - deploy
+
+before_script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+mkdocker:
+  image: docker:19.03.1
+  stage: builddocker
+  services: docker:19.03.1-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --pull -t $PG_CONTAINER .
+    - docker push $PG_CONTAINER
 
 build1:
   stage: build
