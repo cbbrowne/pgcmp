@@ -9,7 +9,7 @@ ifndef ARTIFACT_TARGET
 $(error ARTIFACT_TARGET is not set - this is the directory in which to deploy output artifacts)
 endif
 
-all: $(TARBALL) docker
+all: $(TARBALL)
 
 $(TARBALL): README.html README.org pgcmp pgcmp-dump pgcmp.spec
 	mkdir -p $(VDIR)
