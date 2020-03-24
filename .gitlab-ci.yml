@@ -1,6 +1,3 @@
-services:
-  - postgres:12.2-alpine
-
 variables:
   POSTGRES_DB: nice_marmot
   POSTGRES_USER: runner
@@ -14,6 +11,10 @@ variables:
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
   PGBINDIR: /usr/lib/postgresql/12/bin
   PG_CONTAINER: $CI_REGISTRY_IMAGE:my-custom-postgres
+
+services:
+  - name: $CI_REGISTRY_IMAGE:my-custom-postgres
+    alias: postgres
 
 stages:
   - builddocker
