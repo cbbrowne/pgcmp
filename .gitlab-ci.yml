@@ -14,8 +14,8 @@ variables:
   PG_HOST: custompg
 
 services:
-  - name: $CI_REGISTRY_IMAGE:my-custom-postgres
-    alias: $PG_HOST
+  - image: $CI_REGISTRY_IMAGE:my-custom-postgres
+    name: $PG_HOST
 
 stages:
   - builddocker
