@@ -11,10 +11,11 @@ variables:
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
   PGBINDIR: /usr/lib/postgresql/12/bin
   PG_CONTAINER: $CI_REGISTRY_IMAGE:my-custom-postgres
+  PG_HOST: custompg
 
 services:
   - name: $CI_REGISTRY_IMAGE:my-custom-postgres
-    alias: postgres
+    alias: $PG_HOST
 
 stages:
   - builddocker
@@ -42,24 +43,28 @@ build1:
 connect-test:
   stage: test
   image: postgres
+  services:
+    - $CI_REGISTRY_IMAGE:my-custom-postgres 
   script:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - which psql
-    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 'OK' AS status;"
-    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show port;"
-    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
-    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
-    - psql -d "host=postgres user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
+    - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 'OK' AS status;"
+    - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show port;"
+    - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
+    - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
+    - psql -d "host=${PG_HOST} user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
     - ls -l /var/run/postgresql
     
 functional-test:
   stage: test
   image: postgres
+  services:
+    - $CI_REGISTRY_IMAGE:my-custom-postgres 
   script:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
     - export PGPORT=5432
-    - export PGHOST=postgres
+    - export PGHOST=${PG_HOST}
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
