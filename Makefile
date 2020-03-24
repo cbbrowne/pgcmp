@@ -3,11 +3,13 @@ PVERSION := pgcmp-$(VERSION)
 VDIR := $(ARTIFACT_TARGET)/$(PVERSION)
 TARBALL := $(ARTIFACT_TARGET)/$(PVERSION).tar.bz2
 
+.PHONY: docker
+
 ifndef ARTIFACT_TARGET
 $(error ARTIFACT_TARGET is not set - this is the directory in which to deploy output artifacts)
 endif
 
-all: $(TARBALL)
+all: $(TARBALL) docker
 
 $(TARBALL): README.html README.org pgcmp pgcmp-dump pgcmp.spec
 	mkdir -p $(VDIR)
@@ -16,6 +18,9 @@ $(TARBALL): README.html README.org pgcmp pgcmp-dump pgcmp.spec
 
 README.html: org-to-html README.org
 	ruby org-to-html
+
+docker: docker/Dockerfile
+	docker build --network=host docker -t pg_alpine_rr:latest
 
 clean:
 	rm -rf $(VDIR)
