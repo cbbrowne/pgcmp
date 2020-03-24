@@ -44,7 +44,7 @@ connect-test:
   stage: test
   image: postgres
   services:
-    - $CI_REGISTRY_IMAGE:my-custom-postgres 
+    - $PG_HOST
   script:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - which psql
@@ -59,7 +59,7 @@ functional-test:
   stage: test
   image: postgres
   services:
-    - $CI_REGISTRY_IMAGE:my-custom-postgres 
+    - $PG_HOST
   script:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
