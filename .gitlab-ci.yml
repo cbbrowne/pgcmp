@@ -24,8 +24,8 @@ stages:
   - release
   - deploy
 
-before_script:
-  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#before_script:
+#  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
 builddocker:
   image: docker:19.03.1
@@ -33,13 +33,15 @@ builddocker:
   services:
     - docker:19.03.1-dind
   script:
-    - docker build --pull -t $PG_CONTAINER docker
-    - docker push $PG_CONTAINER
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  - docker build --pull -t $PG_CONTAINER docker
+  - docker push $PG_CONTAINER
 
 build1:
   stage: build
   image: docker:19.03.1
   script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - gem install org-ruby
     - make all
 
