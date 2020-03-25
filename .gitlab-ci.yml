@@ -37,11 +37,10 @@ builddocker:
   - docker build --pull -t $PG_CONTAINER docker
   - docker push $PG_CONTAINER
 
-build1:
+build-pgcmp:
   stage: build
   image: docker:19.03.1
   script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - gem install org-ruby
     - make all
 
