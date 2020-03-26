@@ -15,6 +15,7 @@ variables:
 
 services:
   - name: $PG_CONTAINER
+    alias: $PG_HOST
 
 stages:
   - builddocker
