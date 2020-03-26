@@ -39,7 +39,6 @@ builddocker:
 
 build-pgcmp:
   stage: build
-  image: docker:19.03.1
   script:
     - gem install org-ruby
     - make all
