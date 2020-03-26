@@ -24,8 +24,6 @@ stages:
   - release
   - deploy
 
-#before_script:
-#  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
 builddocker:
   image: docker:19.03.1
@@ -43,7 +41,10 @@ build-pgcmp:
     - gem install org-ruby
     - make all
 
+  
 connect-test:
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   stage: test
   image: postgres
   services:
@@ -59,6 +60,8 @@ connect-test:
     - ls -l /var/run/postgresql
     
 functional-test:
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   stage: test
   image: postgres
   services:
