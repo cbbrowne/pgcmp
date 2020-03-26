@@ -14,7 +14,7 @@ variables:
   PG_HOST: custompg
 
 services:
-  - name: $CI_REGISTRY_IMAGE:my-custom-postgres
+  - name: $PG_CONTAINER
     alias: $PG_HOST
 
 stages:
