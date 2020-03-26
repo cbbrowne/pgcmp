@@ -45,6 +45,7 @@ build-pgcmp:
 connect-test:
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $PG_CONTAINER
   stage: test
   image: postgres
   services:
@@ -62,6 +63,7 @@ connect-test:
 functional-test:
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $PG_CONTAINER
   stage: test
   image: postgres
   services:
