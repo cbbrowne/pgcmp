@@ -15,7 +15,6 @@ variables:
 
 services:
   - name: $PG_CONTAINER
-    alias: $PG_HOST
 
 stages:
   - builddocker
@@ -49,7 +48,7 @@ connect-test:
   stage: test
   image: postgres
   services:
-    - $PG_HOST
+    - $PG_CONTAINER
   script:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - which psql
@@ -67,7 +66,7 @@ functional-test:
   stage: test
   image: postgres
   services:
-    - $PG_HOST
+    - $PG_CONTAINER
   script:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
