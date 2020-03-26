@@ -10,7 +10,7 @@ variables:
   MAHOUTHOME: /builds/cbbrowne/mahout
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
   PGBINDIR: /usr/lib/postgresql/12/bin
-  PG_CONTAINER: $CI_REGISTRY_IMAGE/cbbrowne/pgcmp/my-custom-postgres:latest
+  PG_CONTAINER: $CI_REGISTRY_IMAGE/my-custom-postgres:latest
   PG_HOST: custompg
 
 services:
