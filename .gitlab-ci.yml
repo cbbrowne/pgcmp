@@ -51,7 +51,7 @@ connect-test:
     - docker:19.03.1-dind
     - $PG_CONTAINER
   script:
-    - sudo apt-get install -y postgresql-client
+    - apk add postgresql-client
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - which psql
     - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 'OK' AS status;"
@@ -71,7 +71,7 @@ functional-test:
     - docker:19.03.1-dind
     - $PG_CONTAINER
   script:
-    - sudo apt-get install -y postgresql-client
+    - apk add postgresql-client
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
     - export PGPORT=5432
