@@ -15,7 +15,8 @@ variables:
 
 services:
   - name: $PG_CONTAINER
-    alias: $PG_HOST
+    alias: custompg
+  - name: postgres
   - name: docker:19.03.1-dind
 
 stages:
