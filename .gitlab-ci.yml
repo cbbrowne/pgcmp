@@ -11,7 +11,7 @@ variables:
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
   PGBINDIR: /usr/lib/postgresql/12/bin
   PG_CONTAINER: $CI_REGISTRY_IMAGE/my-custom-postgres:latest
-  PG_HOST: custompg
+  PG_HOST: $PG_CONTAINER
 
 services:
   - name: $PG_CONTAINER
@@ -40,7 +40,6 @@ build-pgcmp:
   script:
     - gem install org-ruby
     - make all
-
   
 connect-test:
   before_script:
