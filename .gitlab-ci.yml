@@ -75,7 +75,7 @@ functional-test:
     - $PG_CONTAINER
     - $PG_HOST
   script:
-    - apk add postgresql-client
+    - apk add postgresql-client bash
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
     - export PGPORT=5432
