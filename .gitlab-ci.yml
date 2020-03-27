@@ -9,7 +9,7 @@ variables:
   PGPORT: 5432
   MAHOUTHOME: /builds/cbbrowne/mahout
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
-  PGBINDIR: /usr/lib/postgresql/12/bin
+  PGBINDIR: /usr/bin
   PG_CONTAINER: $CI_REGISTRY_IMAGE/my-custom-postgres:latest
   PG_HOST: registry.gitlab.com-cbbrowne-pgcmp-my-custom-postgres
 
