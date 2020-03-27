@@ -61,7 +61,6 @@ connect-test:
     - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
     - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
     - psql -d "host=${PG_HOST} user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
-    - ls -l /var/run/postgresql
     
 functional-test:
   before_script:
