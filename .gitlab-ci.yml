@@ -11,7 +11,7 @@ variables:
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
   PGBINDIR: /usr/lib/postgresql/12/bin
   PG_CONTAINER: $CI_REGISTRY_IMAGE/my-custom-postgres:latest
-  PG_HOST: postgres
+  PG_HOST: registry.gitlab.com-cbbrowne-pgcmp-my-custom-postgres
 
 services:
   - name: $PG_CONTAINER
@@ -61,8 +61,6 @@ connect-test:
     - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
     - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
     - psql -d "host=${PG_HOST} user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
-    - echo "what is in resolv.conf"
-    - cat /etc/resolv.conf
     - echo "what is in /etc/hosts"
     - cat /etc/hosts
     
@@ -83,4 +81,6 @@ functional-test:
     - export PGPORT=5432
     - export PGHOST=$PG_HOST
     - echo "running tests"
+    - echo "Where?  CI_BUILDS_DIR = $CI_BUILDS_DIR"
+    - echo "Where?  CI_PROJECT_DIR = $CI_PROJECT_DIR"
     - (cd /builds/cbbrowne/pgcmp/test; PGUSER=$POSTGRES_USER ./run-tests.sh)
