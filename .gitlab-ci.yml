@@ -11,7 +11,7 @@ variables:
   PGCMPHOME: /builds/cbbrowne/mahout/pgcmp
   PGBINDIR: /usr/lib/postgresql/12/bin
   PG_CONTAINER: $CI_REGISTRY_IMAGE/my-custom-postgres:latest
-  PG_HOST: $PG_CONTAINER
+  PG_HOST: postgres
 
 services:
   - name: $PG_CONTAINER
@@ -75,7 +75,7 @@ functional-test:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - export PGUSER=$POSTGRES_USER
     - export PGPORT=5432
-    - export PGHOST=${PG_HOST}
+    - export PGHOST=$PG_HOST
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
 
