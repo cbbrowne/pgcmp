@@ -51,6 +51,7 @@ connect-test:
   services:
     - docker:19.03.1-dind
     - $PG_CONTAINER
+    - $PG_HOST
   script:
     - apk add postgresql-client
     - export PGPASSWORD=$POSTGRES_PASSWORD
@@ -71,6 +72,7 @@ functional-test:
   services:
     - docker:19.03.1-dind
     - $PG_CONTAINER
+    - $PG_HOST
   script:
     - apk add postgresql-client
     - export PGPASSWORD=$POSTGRES_PASSWORD
