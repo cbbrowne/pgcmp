@@ -82,5 +82,7 @@ functional-test:
     - export PGHOST=$PG_HOST
     - echo "running tests"
     - echo "Where?  CI_BUILDS_DIR = $CI_BUILDS_DIR"
+    - ls $CI_BUILDS_DIR
     - echo "Where?  CI_PROJECT_DIR = $CI_PROJECT_DIR"
+    - ls $CI_PROJECT_DIR
     - (cd /builds/cbbrowne/pgcmp/test; PGUSER=$POSTGRES_USER ./run-tests.sh)
