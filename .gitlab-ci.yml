@@ -16,6 +16,7 @@ variables:
 services:
   - name: $PG_CONTAINER
     alias: $PG_HOST
+  - name: docker:19.03.1-dind
 
 stages:
   - builddocker
@@ -23,7 +24,6 @@ stages:
   - test
   - release
   - deploy
-
 
 builddocker:
   image: docker:19.03.1
@@ -78,4 +78,3 @@ functional-test:
     - export PGHOST=$PG_HOST
     - echo "running tests"
     - (cd test; PGUSER=$POSTGRES_USER ./run-tests.sh)
-
