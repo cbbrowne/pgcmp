@@ -15,8 +15,7 @@ variables:
 
 services:
   - name: $PG_CONTAINER
-    alias: custompg
-  - name: postgres
+    alias: $PG_HOST
   - name: docker:19.03.1-dind
 
 stages:
@@ -32,9 +31,9 @@ builddocker:
   services:
     - docker:19.03.1-dind
   script:
-  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  - docker build -t $PG_CONTAINER docker
-  - docker push $PG_CONTAINER
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $PG_CONTAINER docker
+    - docker push $PG_CONTAINER
 
 build-pgcmp:
   stage: build
