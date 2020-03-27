@@ -61,6 +61,10 @@ connect-test:
     - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show config_file;"
     - psql -h $PG_HOST -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "show unix_socket_directories;"
     - psql -d "host=${PG_HOST} user=runner port=5432 dbname=${POSTGRES_DB}" -c "select 'OK' as query_from_connstring;"
+    - echo "what is in resolv.conf"
+    - cat /etc/resolv.conf
+    - echo "what is in /etc/hosts"
+    - cat /etc/hosts
     
 functional-test:
   before_script:
