@@ -1,4 +1,8 @@
 * pgcmp
+
+This code was originally written by my late colleague, Christopher Browne.
+Although he is no longer with us, his valuable work continues to benefit us.
+
 ** Purpose
 
    This toolset is intended to perform comparisons ("reconciliation")
